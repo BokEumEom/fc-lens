@@ -16,6 +16,23 @@ export const PlayerSearchView: React.FC<PlayerSearchViewProps> = ({
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [visibleCount, setVisibleCount] = useState(6);
 
+  // Comparison basket
+  const [compareList, setCompareList] = useState<Player[]>([]);
+  const [showCompareModal, setShowCompareModal] = useState(false);
+
+  const toggleCompare = (e: React.MouseEvent, player: Player) => {
+    e.stopPropagation();
+    if (compareList.some((p) => p.id === player.id)) {
+      setCompareList(compareList.filter((p) => p.id !== player.id));
+    } else {
+      if (compareList.length >= 2) {
+        setCompareList([compareList[1], player]);
+      } else {
+        setCompareList([...compareList, player]);
+      }
+    }
+  };
+
   const [filters, setFilters] = useState<FilterOptions>({
     searchKeyword: '',
     position: 'ALL',
@@ -157,73 +174,93 @@ export const PlayerSearchView: React.FC<PlayerSearchViewProps> = ({
 
       {/* Player Cards List */}
       <div className="space-y-3">
-        {displayedPlayers.map((player) => (
-          <div
-            key={player.id}
-            onClick={() => onSelectPlayer(player)}
-            className="glass-card rounded-xl p-3.5 flex items-center gap-3.5 group hover:border-[#B9F600]/50 transition-all cursor-pointer"
-          >
-            <div className="relative w-16 h-16 flex-shrink-0">
-              <img
-                src={player.image}
-                alt={player.name}
-                className="w-full h-full object-cover rounded-full border-2 border-[#2D333B] group-hover:border-[#B9F600] transition-colors bg-[#232B34]"
-              />
-              <div className="absolute -top-1 -right-1 bg-[#B9F600] text-[#141F00] px-1.5 py-0.5 rounded font-data text-[9px] font-bold z-10 shadow-sm">
-                {player.season}
+        {displayedPlayers.map((player) => {
+          const isComparing = compareList.some((p) => p.id === player.id);
+          return (
+            <div
+              key={player.id}
+              onClick={() => onSelectPlayer(player)}
+              className={`glass-card rounded-xl p-3.5 flex items-center gap-3.5 group hover:border-[#B9F600]/50 transition-all cursor-pointer relative ${
+                isComparing ? 'border-[#38BDF8] bg-[#38BDF8]/5 shadow-[0_0_12px_rgba(56,189,248,0.2)]' : ''
+              }`}
+            >
+              <div className="relative w-16 h-16 flex-shrink-0">
+                <img
+                  src={player.image}
+                  alt={player.name}
+                  className="w-full h-full object-cover rounded-full border-2 border-[#2D333B] group-hover:border-[#B9F600] transition-colors bg-[#232B34]"
+                />
+                <div className="absolute -top-1 -right-1 bg-[#B9F600] text-[#141F00] px-1.5 py-0.5 rounded font-data text-[9px] font-bold z-10 shadow-sm">
+                  {player.season}
+                </div>
               </div>
-            </div>
 
-            <div className="flex-1 min-w-0">
-              <div className="flex justify-between items-start">
-                <div className="truncate pr-2">
-                  <h3 className="text-sm font-bold text-white truncate group-hover:text-[#B9F600] transition-colors">
-                    {player.name}
-                  </h3>
-                  <div className="flex gap-2 items-center mt-1">
-                    <span className="bg-[#2E353F] px-2 py-0.5 rounded font-data text-[10px] text-white uppercase font-bold">
-                      {player.position}
-                    </span>
-                    <span className="font-data text-xs text-[#C3CAAC]">
-                      Salary: <span className="text-white font-bold">{player.salary}</span>
-                    </span>
+              <div className="flex-1 min-w-0">
+                <div className="flex justify-between items-start">
+                  <div className="truncate pr-2">
+                    <h3 className="text-sm font-bold text-white truncate group-hover:text-[#B9F600] transition-colors">
+                      {player.name}
+                    </h3>
+                    <div className="flex gap-2 items-center mt-1">
+                      <span className="bg-[#2E353F] px-2 py-0.5 rounded font-data text-[10px] text-white uppercase font-bold">
+                        {player.position}
+                      </span>
+                      <span className="font-data text-xs text-[#C3CAAC]">
+                        Salary: <span className="text-white font-bold">{player.salary}</span>
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <button
+                      onClick={(e) => toggleCompare(e, player)}
+                      className={`px-2 py-1 rounded-lg text-[10px] font-bold font-data flex items-center gap-1 transition-all ${
+                        isComparing
+                          ? 'bg-[#38BDF8] text-[#032838]'
+                          : 'bg-[#232B34] text-[#38BDF8] border border-[#38BDF8]/40 hover:bg-[#38BDF8]/20'
+                      }`}
+                      title="비교 목록에 추가"
+                    >
+                      <span className="material-symbols-outlined text-[14px]">compare_arrows</span>
+                      <span>{isComparing ? '선택됨' : '비교'}</span>
+                    </button>
+
+                    <div className="text-right">
+                      <span className="text-2xl font-black text-white leading-none font-headline">
+                        {player.ovr}
+                      </span>
+                      <div className="text-[9px] font-data text-[#C3CAAC] uppercase tracking-wider">
+                        OVR
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                <div className="text-right flex-shrink-0">
-                  <span className="text-2xl font-black text-white leading-none font-headline">
-                    {player.ovr}
-                  </span>
-                  <div className="text-[9px] font-data text-[#C3CAAC] uppercase tracking-wider">
-                    OVR
+                <div className="mt-3 flex justify-between items-end border-t border-[#2D333B] pt-2">
+                  <div className="flex flex-col">
+                    <span className="font-data text-[9px] text-[#C3CAAC] uppercase">CURRENT PRICE</span>
+                    <span className="font-data text-xs font-bold text-white">
+                      {formatBP(player.bpPrice)}
+                    </span>
+                  </div>
+                  <div
+                    className={`flex items-center gap-0.5 font-data text-[11px] font-bold ${
+                      player.priceTrendPercent >= 0 ? 'text-[#00FF87]' : 'text-[#FF4B4B]'
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-[14px]">
+                      {player.priceTrendPercent >= 0 ? 'trending_up' : 'trending_down'}
+                    </span>
+                    <span>
+                      {player.priceTrendPercent >= 0 ? '+' : ''}
+                      {player.priceTrendPercent}%
+                    </span>
                   </div>
                 </div>
               </div>
-
-              <div className="mt-3 flex justify-between items-end border-t border-[#2D333B] pt-2">
-                <div className="flex flex-col">
-                  <span className="font-data text-[9px] text-[#C3CAAC] uppercase">CURRENT PRICE</span>
-                  <span className="font-data text-xs font-bold text-white">
-                    {formatBP(player.bpPrice)}
-                  </span>
-                </div>
-                <div
-                  className={`flex items-center gap-0.5 font-data text-[11px] font-bold ${
-                    player.priceTrendPercent >= 0 ? 'text-[#00FF87]' : 'text-[#FF4B4B]'
-                  }`}
-                >
-                  <span className="material-symbols-outlined text-[14px]">
-                    {player.priceTrendPercent >= 0 ? 'trending_up' : 'trending_down'}
-                  </span>
-                  <span>
-                    {player.priceTrendPercent >= 0 ? '+' : ''}
-                    {player.priceTrendPercent}%
-                  </span>
-                </div>
-              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
 
         {filteredPlayers.length === 0 && (
           <div className="text-center py-12 text-[#C3CAAC]">
@@ -372,6 +409,182 @@ export const PlayerSearchView: React.FC<PlayerSearchViewProps> = ({
                 className="w-2/3 py-2.5 bg-[#B9F600] text-[#141F00] rounded-xl text-xs font-data font-bold"
               >
                 Apply Filters
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Comparison Tray */}
+      {compareList.length > 0 && (
+        <div className="fixed bottom-20 left-4 right-4 z-40 max-w-md mx-auto bg-[#182029]/95 border border-[#38BDF8]/60 backdrop-blur-xl rounded-2xl p-3 shadow-[0_10px_30px_rgba(0,0,0,0.8)] flex items-center justify-between animate-in slide-in-from-bottom-5">
+          <div className="flex items-center gap-2 overflow-hidden">
+            <span className="material-symbols-outlined text-[#38BDF8] text-xl flex-shrink-0">
+              compare_arrows
+            </span>
+            <div className="flex items-center gap-2">
+              {compareList.map((p, idx) => (
+                <div key={p.id} className="flex items-center gap-1 bg-[#232B34] px-2 py-1 rounded-lg border border-[#2D333B]">
+                  <img src={p.image} alt={p.name} className="w-5 h-5 rounded-full object-cover" />
+                  <span className="text-xs font-bold text-white max-w-[70px] truncate">{p.name}</span>
+                  <button
+                    onClick={(e) => toggleCompare(e, p)}
+                    className="text-zinc-400 hover:text-white ml-0.5"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+              {compareList.length < 2 && (
+                <span className="text-[11px] text-[#C3CAAC] animate-pulse">
+                  +1명 더 선택하세요
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              onClick={() => setCompareList([])}
+              className="text-xs text-[#C3CAAC] hover:text-white px-1"
+            >
+              초기화
+            </button>
+            <button
+              disabled={compareList.length < 2}
+              onClick={() => {
+                if (compareList.length === 2) {
+                  setShowCompareModal(true);
+                }
+              }}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold font-data transition-all flex items-center gap-1 ${
+                compareList.length === 2
+                  ? 'bg-[#38BDF8] text-[#032838] shadow-[0_0_12px_rgba(56,189,248,0.4)] active:scale-95'
+                  : 'bg-[#232B34] text-zinc-500 cursor-not-allowed'
+              }`}
+            >
+              <span>VS 비교보기</span>
+              <span className="material-symbols-outlined text-sm">chevron_right</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Side-by-Side Player Comparison Modal */}
+      {showCompareModal && compareList.length === 2 && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 animate-in fade-in">
+          <div className="bg-[#12161C] border border-[#38BDF8]/60 w-full max-w-md rounded-2xl p-4 space-y-4 max-h-[90vh] overflow-y-auto shadow-[0_0_30px_rgba(56,189,248,0.2)]">
+            <div className="flex justify-between items-center border-b border-[#2D333B] pb-3">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[#38BDF8]">compare_arrows</span>
+                <h3 className="text-base font-bold text-white font-headline">선수 Stats Side-by-Side 비교</h3>
+              </div>
+              <button
+                onClick={() => setShowCompareModal(false)}
+                className="text-[#C3CAAC] hover:text-white p-1 rounded-lg bg-[#232B34]"
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            {/* Players VS Cards */}
+            <div className="grid grid-cols-12 gap-2 items-center">
+              {/* Player 1 */}
+              <div className="col-span-5 bg-[#182029] border border-[#B9F600] rounded-xl p-2.5 text-center space-y-1">
+                <img
+                  src={compareList[0].image}
+                  alt={compareList[0].name}
+                  className="w-12 h-12 rounded-full object-cover mx-auto border border-[#B9F600] bg-[#232B34]"
+                />
+                <span className="bg-[#B9F600] text-[#141F00] px-1.5 py-0.5 rounded text-[9px] font-bold">
+                  {compareList[0].season}
+                </span>
+                <h4 className="text-xs font-bold text-white truncate">{compareList[0].name}</h4>
+                <p className="text-[10px] text-[#B9F600] font-black">OVR {compareList[0].ovr}</p>
+              </div>
+
+              <div className="col-span-2 text-center font-black text-sm text-[#38BDF8]">VS</div>
+
+              {/* Player 2 */}
+              <div className="col-span-5 bg-[#182029] border border-[#38BDF8] rounded-xl p-2.5 text-center space-y-1">
+                <img
+                  src={compareList[1].image}
+                  alt={compareList[1].name}
+                  className="w-12 h-12 rounded-full object-cover mx-auto border border-[#38BDF8] bg-[#232B34]"
+                />
+                <span className="bg-[#38BDF8] text-[#032838] px-1.5 py-0.5 rounded text-[9px] font-bold">
+                  {compareList[1].season}
+                </span>
+                <h4 className="text-xs font-bold text-white truncate">{compareList[1].name}</h4>
+                <p className="text-[10px] text-[#38BDF8] font-black">OVR {compareList[1].ovr}</p>
+              </div>
+            </div>
+
+            {/* Detailed Stats Comparison Table */}
+            <div className="glass-card rounded-xl overflow-hidden border border-[#2D333B] font-data text-xs">
+              <div className="bg-[#232B34] p-2 text-center font-bold text-white uppercase text-[10px] tracking-wider">
+                능력치 상세 비교표
+              </div>
+              <div className="divide-y divide-[#2D333B]">
+                {[
+                  { label: 'OVR 종합', p1: compareList[0].ovr, p2: compareList[1].ovr },
+                  { label: 'PAC (스피드)', p1: compareList[0].pac, p2: compareList[1].pac },
+                  { label: 'SHO (슈팅)', p1: compareList[0].sho, p2: compareList[1].sho },
+                  { label: 'PAS (패스)', p1: compareList[0].pas, p2: compareList[1].pas },
+                  { label: 'DRI (드리블)', p1: compareList[0].dri, p2: compareList[1].dri },
+                  { label: 'DEF (수비)', p1: compareList[0].def, p2: compareList[1].def },
+                  { label: 'PHY (피지컬)', p1: compareList[0].phy, p2: compareList[1].phy },
+                  { label: 'Weak Foot (약발)', p1: compareList[0].weakFoot, p2: compareList[1].weakFoot },
+                  { label: 'Skill Moves (개인기)', p1: compareList[0].skillMoves, p2: compareList[1].skillMoves },
+                  { label: '급여 (Salary)', p1: compareList[0].salary, p2: compareList[1].salary },
+                  { label: '시세 (BP)', p1: formatBP(compareList[0].bpPrice), p2: formatBP(compareList[1].bpPrice), rawP1: compareList[0].bpPrice, rawP2: compareList[1].bpPrice },
+                ].map((row, idx) => {
+                  const val1 = typeof row.p1 === 'number' ? row.p1 : row.rawP1 || 0;
+                  const val2 = typeof row.p2 === 'number' ? row.p2 : row.rawP2 || 0;
+                  const p1Wins = val1 > val2;
+                  const p2Wins = val2 > val1;
+
+                  return (
+                    <div key={idx} className="grid grid-cols-12 p-2 items-center hover:bg-[#232B34]/40 transition-colors">
+                      <div className={`col-span-4 text-left font-bold ${p1Wins ? 'text-[#B9F600]' : 'text-white'}`}>
+                        {row.p1}
+                        {p1Wins && typeof row.p1 === 'number' && typeof row.p2 === 'number' && (
+                          <span className="ml-1 text-[9px] bg-[#B9F600]/20 text-[#B9F600] px-1 rounded">+{row.p1 - row.p2}</span>
+                        )}
+                      </div>
+                      <div className="col-span-4 text-center text-[#C3CAAC] text-[10px] font-bold uppercase truncate">
+                        {row.label}
+                      </div>
+                      <div className={`col-span-4 text-right font-bold ${p2Wins ? 'text-[#38BDF8]' : 'text-white'}`}>
+                        {p2Wins && typeof row.p1 === 'number' && typeof row.p2 === 'number' && (
+                          <span className="mr-1 text-[9px] bg-[#38BDF8]/20 text-[#38BDF8] px-1 rounded">+{row.p2 - row.p1}</span>
+                        )}
+                        {row.p2}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  onSelectPlayer(compareList[0]);
+                  setShowCompareModal(false);
+                }}
+                className="flex-1 py-2 bg-[#B9F600]/20 hover:bg-[#B9F600]/30 text-[#B9F600] border border-[#B9F600]/40 rounded-xl font-data text-xs font-bold"
+              >
+                {compareList[0].name} 상세페이지
+              </button>
+              <button
+                onClick={() => {
+                  onSelectPlayer(compareList[1]);
+                  setShowCompareModal(false);
+                }}
+                className="flex-1 py-2 bg-[#38BDF8]/20 hover:bg-[#38BDF8]/30 text-[#38BDF8] border border-[#38BDF8]/40 rounded-xl font-data text-xs font-bold"
+              >
+                {compareList[1].name} 상세페이지
               </button>
             </div>
           </div>
