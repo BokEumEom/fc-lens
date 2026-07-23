@@ -1,4 +1,13 @@
 import React, { useState } from 'react';
+import {
+  Radar,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  ResponsiveContainer,
+  Tooltip,
+} from 'recharts';
 import { Player } from '../types';
 import { formatBP } from '../data/mockData';
 import { PlayerPickerModal } from './PlayerPickerModal';
@@ -6,6 +15,8 @@ import { PlayerPickerModal } from './PlayerPickerModal';
 interface PlayerDetailViewProps {
   player: Player;
   allPlayers: Player[];
+  favoriteIds: string[];
+  onToggleFavorite: (playerId: string) => void;
   onBack: () => void;
   onSelectPlayer: (player: Player) => void;
 }
@@ -13,10 +24,12 @@ interface PlayerDetailViewProps {
 export const PlayerDetailView: React.FC<PlayerDetailViewProps> = ({
   player,
   allPlayers,
+  favoriteIds,
+  onToggleFavorite,
   onBack,
   onSelectPlayer,
 }) => {
-  const [isFavorite, setIsFavorite] = useState(false);
+  const isFavorite = favoriteIds.includes(player.id);
   const [selectedGrade, setSelectedGrade] = useState(1);
   const [selectedTimeRange, setSelectedTimeRange] = useState<'1W' | '1M' | '3M'>('1M');
   const [copiedLink, setCopiedLink] = useState(false);
@@ -61,19 +74,64 @@ export const PlayerDetailView: React.FC<PlayerDetailViewProps> = ({
       ]
     : [];
 
-  // Helper to get SVG polygon coordinates for radar chart
-  const getRadarCoordinates = (statsArr: { value: number }[]) => {
-    const center = 50;
-    const radius = 38;
-    return statsArr
-      .map((stat, i) => {
-        const angle = (Math.PI * 2 * i) / statsArr.length - Math.PI / 2;
-        const ratio = stat.value / maxStat;
-        const x = center + radius * ratio * Math.cos(angle);
-        const y = center + radius * ratio * Math.sin(angle);
-        return `${x.toFixed(1)},${y.toFixed(1)}`;
-      })
-      .join(' ');
+  // Recharts Data Format for Key Attributes (Pace, Shooting, Passing, Dribbling, Defense, Physical)
+  const rechartsData = [
+    {
+      attribute: 'PAC',
+      fullName: 'Pace (스피드)',
+      p1: p1Stats[0].value,
+      p2: comparePlayer ? p2Stats[0].value : undefined,
+    },
+    {
+      attribute: 'SHO',
+      fullName: 'Shooting (슈팅)',
+      p1: p1Stats[1].value,
+      p2: comparePlayer ? p2Stats[1].value : undefined,
+    },
+    {
+      attribute: 'PAS',
+      fullName: 'Passing (패스)',
+      p1: p1Stats[2].value,
+      p2: comparePlayer ? p2Stats[2].value : undefined,
+    },
+    {
+      attribute: 'DRI',
+      fullName: 'Dribbling (드리블)',
+      p1: p1Stats[3].value,
+      p2: comparePlayer ? p2Stats[3].value : undefined,
+    },
+    {
+      attribute: 'DEF',
+      fullName: 'Defense (수비)',
+      p1: p1Stats[4].value,
+      p2: comparePlayer ? p2Stats[4].value : undefined,
+    },
+    {
+      attribute: 'PHY',
+      fullName: 'Physical (피지컬)',
+      p1: p1Stats[5].value,
+      p2: comparePlayer ? p2Stats[5].value : undefined,
+    },
+  ];
+
+  const CustomRadarTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      return (
+        <div className="bg-[#141C25]/95 border border-[#2D333B] p-2.5 rounded-xl shadow-xl font-data text-xs space-y-1">
+          <p className="font-bold text-white border-b border-[#2D333B] pb-1">{data.fullName}</p>
+          <p className="text-[#B9F600] font-bold">
+            {player.name}: <span className="text-white">{data.p1}</span>
+          </p>
+          {comparePlayer && data.p2 !== undefined && (
+            <p className="text-[#38BDF8] font-bold">
+              {comparePlayer.name}: <span className="text-white">{data.p2}</span>
+            </p>
+          )}
+        </div>
+      );
+    }
+    return null;
   };
 
   const handleShare = () => {
@@ -128,17 +186,19 @@ export const PlayerDetailView: React.FC<PlayerDetailViewProps> = ({
             </span>
           </button>
           <button
-            onClick={() => setIsFavorite(!isFavorite)}
-            className={`p-1.5 transition-colors ${
-              isFavorite ? 'text-[#FF4B4B]' : 'text-[#C3CAAC] hover:text-white'
+            onClick={() => onToggleFavorite(player.id)}
+            className={`p-1.5 rounded-lg border transition-all ${
+              isFavorite
+                ? 'bg-[#FFD700]/20 text-[#FFD700] border-[#FFD700]/60 shadow-[0_0_12px_rgba(255,215,0,0.3)]'
+                : 'text-[#C3CAAC] hover:text-[#FFD700] border-transparent bg-[#232B34]'
             }`}
-            title="Favorite"
+            title={isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
           >
             <span
               className="material-symbols-outlined text-[20px]"
               style={{ fontVariationSettings: isFavorite ? "'FILL' 1" : "'FILL' 0" }}
             >
-              favorite
+              star
             </span>
           </button>
         </div>
@@ -500,21 +560,50 @@ export const PlayerDetailView: React.FC<PlayerDetailViewProps> = ({
                 const p2Wins = val2 > val1;
 
                 return (
-                  <div key={i} className="grid grid-cols-12 p-2.5 items-center hover:bg-[#232B34]/30 transition-colors">
-                    <div className={`col-span-4 text-left font-bold ${p1Wins ? 'text-[#B9F600]' : 'text-white'}`}>
-                      {row.p1}
-                      {p1Wins && typeof row.p1 === 'number' && typeof row.p2 === 'number' && (
-                        <span className="ml-1 text-[9px] bg-[#B9F600]/20 text-[#B9F600] px-1 rounded">+{row.p1 - row.p2}</span>
+                  <div
+                    key={i}
+                    className={`grid grid-cols-12 p-2.5 items-center transition-all ${
+                      p1Wins
+                        ? 'bg-gradient-to-r from-[#B9F600]/10 via-transparent to-transparent'
+                        : p2Wins
+                        ? 'bg-gradient-to-l from-[#38BDF8]/10 via-transparent to-transparent'
+                        : 'hover:bg-[#232B34]/30'
+                    }`}
+                  >
+                    <div className="col-span-4 text-left">
+                      {p1Wins ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[#B9F600]/20 text-[#B9F600] border border-[#B9F600]/60 rounded-lg shadow-[0_0_12px_rgba(185,246,0,0.25)] font-black text-xs">
+                          <span>{row.p1}</span>
+                          {typeof row.p1 === 'number' && typeof row.p2 === 'number' && (
+                            <span className="text-[9px] bg-[#B9F600]/30 text-[#B9F600] px-1 rounded font-bold">
+                              +{row.p1 - row.p2}
+                            </span>
+                          )}
+                        </span>
+                      ) : (
+                        <span className="text-[#8A99AD] font-semibold text-xs px-2.5 py-1 inline-block">
+                          {row.p1}
+                        </span>
                       )}
                     </div>
-                    <div className="col-span-4 text-center text-[#C3CAAC] text-[10px] font-bold uppercase">
+                    <div className="col-span-4 text-center text-[#C3CAAC] text-[10px] font-bold uppercase tracking-wide">
                       {row.label}
                     </div>
-                    <div className={`col-span-4 text-right font-bold ${p2Wins ? 'text-[#38BDF8]' : 'text-white'}`}>
-                      {p2Wins && typeof row.p1 === 'number' && typeof row.p2 === 'number' && (
-                        <span className="mr-1 text-[9px] bg-[#38BDF8]/20 text-[#38BDF8] px-1 rounded">+{row.p2 - row.p1}</span>
+                    <div className="col-span-4 text-right">
+                      {p2Wins ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[#38BDF8]/20 text-[#38BDF8] border border-[#38BDF8]/60 rounded-lg shadow-[0_0_12px_rgba(56,189,248,0.25)] font-black text-xs">
+                          {typeof row.p1 === 'number' && typeof row.p2 === 'number' && (
+                            <span className="text-[9px] bg-[#38BDF8]/30 text-[#38BDF8] px-1 rounded font-bold">
+                              +{row.p2 - row.p1}
+                            </span>
+                          )}
+                          <span>{row.p2}</span>
+                        </span>
+                      ) : (
+                        <span className="text-[#8A99AD] font-semibold text-xs px-2.5 py-1 inline-block">
+                          {row.p2}
+                        </span>
                       )}
-                      {row.p2}
                     </div>
                   </div>
                 );

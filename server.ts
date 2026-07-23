@@ -878,6 +878,71 @@ async function startServer() {
     });
   });
 
+  // 6. 이적시장 거래 내역 조회 (Trade History Endpoint: Buy/Sell Records)
+  app.get("/api/nexon/trade", async (req, res) => {
+    let ouid = req.query.ouid as string;
+    const nickname = req.query.nickname as string;
+    const tradeType = (req.query.tradetype as string) || "buy"; // "buy" or "sell"
+    const customApiKey = req.headers["x-nxopen-api-key"] as string;
+    const apiKey = customApiKey || process.env.NEXON_OPENAPI_KEY;
+
+    if (!apiKey || apiKey === "test_nxapi_key_here") {
+      const demoTrades = tradeType === "buy" ? [
+        { tradeDate: new Date(Date.now() - 3600000 * 3).toISOString(), saleType: "buy", spid: 250102143, name: "Kylian Mbappé", season: "24TY", grade: 5, value: 45000000000 },
+        { tradeDate: new Date(Date.now() - 3600000 * 20).toISOString(), saleType: "buy", spid: 240000001, name: "Son Heung-min", season: "24TY", grade: 5, value: 28000000000 },
+        { tradeDate: new Date(Date.now() - 3600000 * 48).toISOString(), saleType: "buy", spid: 101000001, name: "Jude Bellingham", season: "24TY", grade: 3, value: 18500000000 },
+        { tradeDate: new Date(Date.now() - 3600000 * 90).toISOString(), saleType: "buy", spid: 101000002, name: "Rodri", season: "23HW", grade: 5, value: 9800000000 },
+      ] : [
+        { tradeDate: new Date(Date.now() - 3600000 * 8).toISOString(), saleType: "sell", spid: 250102144, name: "Erling Haaland", season: "24TY", grade: 3, value: 32000000000 },
+        { tradeDate: new Date(Date.now() - 3600000 * 35).toISOString(), saleType: "sell", spid: 240000002, name: "Kevin De Bruyne", season: "23HW", grade: 5, value: 14200000000 },
+        { tradeDate: new Date(Date.now() - 3600000 * 72).toISOString(), saleType: "sell", spid: 100000001, name: "Zinedine Zidane", season: "ICON", grade: 1, value: 65000000000 },
+      ];
+
+      return res.json({
+        isDemoData: true,
+        tradeType,
+        totalCount: demoTrades.length,
+        trades: demoTrades,
+      });
+    }
+
+    try {
+      if (!ouid && nickname) {
+        const idRes = await fetch(
+          `https://open.api.nexon.com/fconline/v1/id?nickname=${encodeURIComponent(nickname)}`,
+          { headers: { "x-nxopen-api-key": apiKey } }
+        );
+        if (idRes.ok) {
+          const idData = await idRes.json();
+          ouid = idData.ouid;
+        }
+      }
+
+      if (!ouid) {
+        return res.status(400).json({ error: true, message: "OUID or valid nickname required" });
+      }
+
+      const response = await fetch(
+        `https://open.api.nexon.com/fconline/v1/user/trade?ouid=${ouid}&tradetype=${tradeType}&offset=0&limit=20`,
+        { headers: { "x-nxopen-api-key": apiKey } }
+      );
+
+      if (!response.ok) {
+        return res.status(response.status).json({ error: true, message: "Failed to fetch trade history" });
+      }
+
+      const rawTrades = await response.json();
+      res.json({
+        isDemoData: false,
+        tradeType,
+        totalCount: Array.isArray(rawTrades) ? rawTrades.length : 0,
+        trades: rawTrades,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: true, message: err.message });
+    }
+  });
+
   // Backward compatibility alias for user lookup
   app.get("/api/nexon/user-lookup", async (req, res) => {
     req.url = `/api/nexon/account?nickname=${encodeURIComponent((req.query.nickname as string) || "두치와뿌꾸")}`;

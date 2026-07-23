@@ -43,7 +43,7 @@ export interface SquadSlot {
   grade: number; // +1, +3, +5, etc.
 }
 
-export type TabType = 'home' | 'search' | 'squad' | 'ranker' | 'nexon' | 'detail';
+export type TabType = 'home' | 'search' | 'squad' | 'ranker' | 'detail';
 
 export interface FilterOptions {
   searchKeyword: string;

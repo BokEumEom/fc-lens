@@ -17,7 +17,17 @@ import {
   ReferenceLine,
 } from 'recharts';
 
-type NexonTab = 'account' | 'match' | 'ranker' | 'metadata' | 'images';
+type NexonTab = 'account' | 'match' | 'ranker' | 'metadata' | 'images' | 'trade';
+
+interface TradeItem {
+  tradeDate: string;
+  saleType: 'buy' | 'sell' | string;
+  spid: number;
+  name?: string;
+  season?: string;
+  grade?: number;
+  value: number;
+}
 
 interface NexonAccount {
   ouid: string;
@@ -728,6 +738,36 @@ export const NexonUserView: React.FC = () => {
     seasonBadge: 'https://fconline.gcdn.nexon.com/live/externalAssets/common/season/101.png',
   });
 
+  // 7. Trade History State
+  const [tradeType, setTradeType] = useState<'buy' | 'sell'>('buy');
+  const [tradeLoading, setTradeLoading] = useState(false);
+  const [trades, setTrades] = useState<TradeItem[]>([]);
+
+  const fetchTradeHistory = async (targetType: 'buy' | 'sell' = tradeType) => {
+    setTradeLoading(true);
+    try {
+      const headers: Record<string, string> = {};
+      if (customKey) headers['x-nxopen-api-key'] = customKey;
+
+      let url = `/api/nexon/trade?tradetype=${targetType}`;
+      if (accountData?.ouid) {
+        url += `&ouid=${encodeURIComponent(accountData.ouid)}`;
+      } else if (nickname) {
+        url += `&nickname=${encodeURIComponent(nickname)}`;
+      }
+
+      const res = await fetch(url, { headers });
+      const data = await res.json();
+      if (res.ok && data.trades) {
+        setTrades(data.trades);
+      }
+    } catch (err) {
+      console.error('Trade fetch error', err);
+    } finally {
+      setTradeLoading(false);
+    }
+  };
+
   const popularNicknames = ['두치와뿌꾸', '감스트', '김병지', '환경', '신보석'];
 
   const showToast = (msg: string) => {
@@ -896,13 +936,16 @@ export const NexonUserView: React.FC = () => {
     fetchMatchDetail('m_001');
     fetchRankers();
     fetchMetadata('matchtype');
+    fetchTradeHistory('buy');
   }, []);
 
   useEffect(() => {
     if (activeSubTab === 'metadata') {
       fetchMetadata(metaType);
+    } else if (activeSubTab === 'trade') {
+      fetchTradeHistory(tradeType);
     }
-  }, [metaType, activeSubTab]);
+  }, [metaType, tradeType, activeSubTab]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -990,7 +1033,7 @@ export const NexonUserView: React.FC = () => {
         </button>
       </div>
 
-      {/* 5 Core Feature Navigation Subtabs */}
+      {/* Core Feature Navigation Subtabs */}
       <div className="flex items-center gap-2 overflow-x-auto no-scrollbar bg-[#161A1E] p-2 rounded-2xl border border-[#2D333B] shadow-inner scroll-smooth">
         {[
           { id: 'account', label: '1. 계정 정보', icon: 'account_box' },
@@ -998,6 +1041,7 @@ export const NexonUserView: React.FC = () => {
           { id: 'ranker', label: '3. 랭커 정보', icon: 'leaderboard' },
           { id: 'metadata', label: '4. 메타데이터', icon: 'schema' },
           { id: 'images', label: '5. 이미지 정보', icon: 'image' },
+          { id: 'trade', label: '6. 이적시장 거래 내역', icon: 'receipt_long' },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -2028,6 +2072,144 @@ export const NexonUserView: React.FC = () => {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ------------------------------------------------------------------ */}
+      {/* 6. 이적시장 거래 내역 (Trade History) Tab */}
+      {/* ------------------------------------------------------------------ */}
+      {activeSubTab === 'trade' && (
+        <div className="space-y-4 animate-in fade-in">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-[#161A1E] p-4 rounded-2xl border border-[#2D333B]">
+            <div>
+              <h2 className="text-sm font-bold text-white font-headline flex items-center gap-2">
+                <span className="material-symbols-outlined text-[#B9F600] text-lg">receipt_long</span>
+                구단주 이적시장 거래 기록 (Trade History)
+              </h2>
+              <p className="text-xs text-[#C3CAAC]">
+                NEXON Open API `/fconline/v1/user/trade` 연동 최근 선수 구매 및 판매 내역
+              </p>
+            </div>
+
+            {/* Buy / Sell Filter Switch */}
+            <div className="flex items-center gap-1 bg-[#232B34] p-1 rounded-xl border border-[#2D333B]">
+              <button
+                onClick={() => {
+                  setTradeType('buy');
+                  fetchTradeHistory('buy');
+                }}
+                className={`px-3 py-1.5 rounded-lg font-data text-xs font-bold transition-all ${
+                  tradeType === 'buy'
+                    ? 'bg-[#00FF87] text-[#141F00] shadow-sm'
+                    : 'text-[#C3CAAC] hover:text-white'
+                }`}
+              >
+                🛒 구매 내역 (Buy)
+              </button>
+              <button
+                onClick={() => {
+                  setTradeType('sell');
+                  fetchTradeHistory('sell');
+                }}
+                className={`px-3 py-1.5 rounded-lg font-data text-xs font-bold transition-all ${
+                  tradeType === 'sell'
+                    ? 'bg-[#FF4B4B] text-white shadow-sm'
+                    : 'text-[#C3CAAC] hover:text-white'
+                }`}
+              >
+                💰 판매 내역 (Sell)
+              </button>
+            </div>
+          </div>
+
+          {/* Trade List */}
+          {tradeLoading && (
+            <div className="bg-[#161A1E] border border-[#2D333B] rounded-2xl p-8 flex flex-col items-center justify-center space-y-2 text-center">
+              <span className="material-symbols-outlined text-[#B9F600] text-3xl animate-spin">
+                sync
+              </span>
+              <p className="font-data text-xs text-white font-bold">Fetching Trade History from NEXON API...</p>
+            </div>
+          )}
+
+          {!tradeLoading && trades.length === 0 && (
+            <div className="bg-[#161A1E] border border-[#2D333B] rounded-2xl p-8 text-center space-y-2">
+              <span className="material-symbols-outlined text-[#8A99AD] text-3xl">receipt</span>
+              <p className="text-xs text-[#C3CAAC]">최근 거래 기록이 존재하지 않습니다.</p>
+            </div>
+          )}
+
+          {!tradeLoading && trades.length > 0 && (
+            <div className="space-y-2.5">
+              {trades.map((item, idx) => {
+                const dateObj = new Date(item.tradeDate);
+                const formattedDate = !isNaN(dateObj.getTime())
+                  ? `${dateObj.getFullYear()}.${String(dateObj.getMonth() + 1).padStart(2, '0')}.${String(
+                      dateObj.getDate()
+                    ).padStart(2, '0')} ${String(dateObj.getHours()).padStart(2, '0')}:${String(
+                      dateObj.getMinutes()
+                    ).padStart(2, '0')}`
+                  : item.tradeDate;
+
+                const isBuy = item.saleType === 'buy' || tradeType === 'buy';
+
+                return (
+                  <div
+                    key={idx}
+                    className="bg-[#161A1E] border border-[#2D333B] rounded-2xl p-3.5 flex items-center justify-between hover:border-[#B9F600]/40 transition-all font-data"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="relative">
+                        <img
+                          src={`https://fconline.gcdn.nexon.com/live/externalAssets/common/players/p${item.spid}.png`}
+                          alt="player"
+                          className="w-12 h-12 rounded-xl object-cover bg-[#232B34] border border-[#2D333B]"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src =
+                              'https://fconline.gcdn.nexon.com/live/externalAssets/common/players/p250102143.png';
+                          }}
+                        />
+                        {item.grade && (
+                          <span className="absolute -bottom-1 -right-1 bg-[#182029] text-[#B9F600] border border-[#B9F600]/60 text-[9px] font-bold px-1 rounded">
+                            +{item.grade}
+                          </span>
+                        )}
+                      </div>
+
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-white">
+                            {item.name || `선수 (SPID: ${item.spid})`}
+                          </span>
+                          {item.season && (
+                            <span className="bg-[#232B34] text-[#B9F600] text-[9px] font-bold px-1.5 py-0.2 rounded border border-[#2D333B]">
+                              {item.season}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-[#8A99AD] mt-0.5">{formattedDate}</p>
+                      </div>
+                    </div>
+
+                    <div className="text-right space-y-0.5">
+                      <span
+                        className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
+                          isBuy
+                            ? 'bg-[#00FF87]/15 text-[#00FF87] border border-[#00FF87]/30'
+                            : 'bg-[#FF4B4B]/15 text-[#FF4B4B] border border-[#FF4B4B]/30'
+                        }`}
+                      >
+                        {isBuy ? '구매 완료' : '판매 완료'}
+                      </span>
+                      <p className="text-xs font-bold text-white">
+                        {(item.value / 100000000).toLocaleString('ko-KR', { maximumFractionDigits: 1 })}억 BP
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 

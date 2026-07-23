@@ -4,17 +4,22 @@ import { formatBP } from '../data/mockData';
 
 interface PlayerSearchViewProps {
   players: Player[];
+  favoriteIds: string[];
+  onToggleFavorite: (playerId: string) => void;
   onSelectPlayer: (player: Player) => void;
   initialSeason?: string;
 }
 
 export const PlayerSearchView: React.FC<PlayerSearchViewProps> = ({
   players,
+  favoriteIds,
+  onToggleFavorite,
   onSelectPlayer,
   initialSeason = '',
 }) => {
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [visibleCount, setVisibleCount] = useState(6);
+  const [onlyFavorites, setOnlyFavorites] = useState(false);
 
   // Comparison basket
   const [compareList, setCompareList] = useState<Player[]>([]);
@@ -44,6 +49,10 @@ export const PlayerSearchView: React.FC<PlayerSearchViewProps> = ({
 
   const filteredPlayers = useMemo(() => {
     let result = [...players];
+
+    if (onlyFavorites) {
+      result = result.filter((p) => favoriteIds.includes(p.id));
+    }
 
     if (filters.searchKeyword.trim()) {
       const q = filters.searchKeyword.toLowerCase();
@@ -85,7 +94,7 @@ export const PlayerSearchView: React.FC<PlayerSearchViewProps> = ({
     }
 
     return result;
-  }, [players, filters]);
+  }, [players, filters, onlyFavorites, favoriteIds]);
 
   const displayedPlayers = filteredPlayers.slice(0, visibleCount);
 
@@ -113,6 +122,20 @@ export const PlayerSearchView: React.FC<PlayerSearchViewProps> = ({
         >
           <span className="material-symbols-outlined text-[16px]">tune</span>
           Filters
+        </button>
+
+        <button
+          onClick={() => setOnlyFavorites(!onlyFavorites)}
+          className={`px-3.5 py-1.5 rounded-full font-data text-xs font-bold flex items-center gap-1.5 flex-shrink-0 border transition-all ${
+            onlyFavorites
+              ? 'bg-[#FFD700]/25 text-[#FFD700] border-[#FFD700]/80 shadow-[0_0_10px_rgba(255,215,0,0.3)]'
+              : 'bg-[#232B34] text-[#C3CAAC] border-[#2D333B] hover:text-[#FFD700]'
+          }`}
+        >
+          <span className="material-symbols-outlined text-[16px]" style={{ fontVariationSettings: onlyFavorites ? "'FILL' 1" : "'FILL' 0" }}>
+            star
+          </span>
+          ★ 즐겨찾기 ({favoriteIds.length})
         </button>
 
         <div className="h-4 w-[1px] bg-[#2D333B] mx-0.5"></div>
@@ -211,7 +234,27 @@ export const PlayerSearchView: React.FC<PlayerSearchViewProps> = ({
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 flex-shrink-0">
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onToggleFavorite(player.id);
+                      }}
+                      className={`p-1 rounded-lg transition-all ${
+                        favoriteIds.includes(player.id)
+                          ? 'text-[#FFD700] bg-[#FFD700]/15 border border-[#FFD700]/50'
+                          : 'text-[#8A99AD] hover:text-[#FFD700] bg-[#232B34] border border-[#2D333B]'
+                      }`}
+                      title={favoriteIds.includes(player.id) ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+                    >
+                      <span
+                        className="material-symbols-outlined text-[16px]"
+                        style={{ fontVariationSettings: favoriteIds.includes(player.id) ? "'FILL' 1" : "'FILL' 0" }}
+                      >
+                        star
+                      </span>
+                    </button>
+
                     <button
                       onClick={(e) => toggleCompare(e, player)}
                       className={`px-2 py-1 rounded-lg text-[10px] font-bold font-data flex items-center gap-1 transition-all ${
@@ -225,7 +268,7 @@ export const PlayerSearchView: React.FC<PlayerSearchViewProps> = ({
                       <span>{isComparing ? '선택됨' : '비교'}</span>
                     </button>
 
-                    <div className="text-right">
+                    <div className="text-right ml-1">
                       <span className="text-2xl font-black text-white leading-none font-headline">
                         {player.ovr}
                       </span>
@@ -545,21 +588,50 @@ export const PlayerSearchView: React.FC<PlayerSearchViewProps> = ({
                   const p2Wins = val2 > val1;
 
                   return (
-                    <div key={idx} className="grid grid-cols-12 p-2 items-center hover:bg-[#232B34]/40 transition-colors">
-                      <div className={`col-span-4 text-left font-bold ${p1Wins ? 'text-[#B9F600]' : 'text-white'}`}>
-                        {row.p1}
-                        {p1Wins && typeof row.p1 === 'number' && typeof row.p2 === 'number' && (
-                          <span className="ml-1 text-[9px] bg-[#B9F600]/20 text-[#B9F600] px-1 rounded">+{row.p1 - row.p2}</span>
+                    <div
+                      key={idx}
+                      className={`grid grid-cols-12 p-2.5 items-center transition-all ${
+                        p1Wins
+                          ? 'bg-gradient-to-r from-[#B9F600]/10 via-transparent to-transparent'
+                          : p2Wins
+                          ? 'bg-gradient-to-l from-[#38BDF8]/10 via-transparent to-transparent'
+                          : 'hover:bg-[#232B34]/40'
+                      }`}
+                    >
+                      <div className="col-span-4 text-left">
+                        {p1Wins ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[#B9F600]/20 text-[#B9F600] border border-[#B9F600]/60 rounded-lg shadow-[0_0_12px_rgba(185,246,0,0.25)] font-black text-xs">
+                            <span>{row.p1}</span>
+                            {typeof row.p1 === 'number' && typeof row.p2 === 'number' && (
+                              <span className="text-[9px] bg-[#B9F600]/30 text-[#B9F600] px-1 rounded font-bold">
+                                +{row.p1 - row.p2}
+                              </span>
+                            )}
+                          </span>
+                        ) : (
+                          <span className="text-[#8A99AD] font-semibold text-xs px-2.5 py-1 inline-block">
+                            {row.p1}
+                          </span>
                         )}
                       </div>
                       <div className="col-span-4 text-center text-[#C3CAAC] text-[10px] font-bold uppercase truncate">
                         {row.label}
                       </div>
-                      <div className={`col-span-4 text-right font-bold ${p2Wins ? 'text-[#38BDF8]' : 'text-white'}`}>
-                        {p2Wins && typeof row.p1 === 'number' && typeof row.p2 === 'number' && (
-                          <span className="mr-1 text-[9px] bg-[#38BDF8]/20 text-[#38BDF8] px-1 rounded">+{row.p2 - row.p1}</span>
+                      <div className="col-span-4 text-right">
+                        {p2Wins ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[#38BDF8]/20 text-[#38BDF8] border border-[#38BDF8]/60 rounded-lg shadow-[0_0_12px_rgba(56,189,248,0.25)] font-black text-xs">
+                            {typeof row.p1 === 'number' && typeof row.p2 === 'number' && (
+                              <span className="text-[9px] bg-[#38BDF8]/30 text-[#38BDF8] px-1 rounded font-bold">
+                                +{row.p2 - row.p1}
+                              </span>
+                            )}
+                            <span>{row.p2}</span>
+                          </span>
+                        ) : (
+                          <span className="text-[#8A99AD] font-semibold text-xs px-2.5 py-1 inline-block">
+                            {row.p2}
+                          </span>
                         )}
-                        {row.p2}
                       </div>
                     </div>
                   );

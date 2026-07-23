@@ -4,13 +4,17 @@ import { POPULAR_SEASONS, formatBP } from '../data/mockData';
 
 interface HomeViewProps {
   players: Player[];
+  favoriteIds: string[];
+  onToggleFavorite: (playerId: string) => void;
   onSelectPlayer: (player: Player) => void;
-  onNavigateTab: (tab: 'search' | 'squad' | 'ranker' | 'nexon') => void;
+  onNavigateTab: (tab: 'search' | 'squad' | 'ranker') => void;
   onFilterSeason: (seasonId: string) => void;
 }
 
 export const HomeView: React.FC<HomeViewProps> = ({
   players,
+  favoriteIds,
+  onToggleFavorite,
   onSelectPlayer,
   onNavigateTab,
   onFilterSeason,
@@ -28,6 +32,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
     : [];
 
   const trendingPlayers = players.slice(0, 4); // top 4 trending
+  const favoritePlayers = players.filter((p) => favoriteIds.includes(p.id));
 
   return (
     <div className="pb-24 pt-2 space-y-6">
@@ -221,6 +226,94 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </div>
       </section>
 
+      {/* Favorite Players Section */}
+      <section className="px-4">
+        <div className="flex justify-between items-center mb-3">
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-[#FFD700] text-xl">star</span>
+            <h2 className="text-base font-bold text-white">즐겨찾는 선수 (Favorites)</h2>
+            <span className="bg-[#FFD700]/15 text-[#FFD700] border border-[#FFD700]/30 px-2 py-0.5 rounded-full font-data text-xs font-bold">
+              {favoritePlayers.length}
+            </span>
+          </div>
+          <button
+            onClick={() => onNavigateTab('search')}
+            className="font-data text-xs text-[#B9F600] font-semibold hover:underline"
+          >
+            선수 추가 +
+          </button>
+        </div>
+
+        {favoritePlayers.length > 0 ? (
+          <div className="grid grid-cols-2 gap-2.5">
+            {favoritePlayers.map((player) => (
+              <div
+                key={player.id}
+                onClick={() => onSelectPlayer(player)}
+                className="bg-[#161A1E] border border-[#FFD700]/30 hover:border-[#FFD700] rounded-xl p-3 relative group transition-all cursor-pointer shadow-[0_0_15px_rgba(255,215,0,0.05)]"
+              >
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleFavorite(player.id);
+                  }}
+                  className="absolute top-2 right-2 text-[#FFD700] hover:scale-125 transition-transform p-1"
+                  title="즐겨찾기 해제"
+                >
+                  <span className="material-symbols-outlined text-lg" style={{ fontVariationSettings: "'FILL' 1" }}>
+                    star
+                  </span>
+                </button>
+
+                <div className="flex items-center gap-2.5 mb-2">
+                  <div className="relative">
+                    <img
+                      src={player.image}
+                      alt={player.name}
+                      className="w-11 h-11 rounded-full object-cover border border-[#FFD700]/50 bg-[#232B34]"
+                    />
+                    <span className="absolute -bottom-1 -right-1 bg-[#FFD700] text-[#141F00] text-[8px] font-bold px-1 rounded font-data">
+                      {player.season}
+                    </span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-xs font-bold text-white truncate group-hover:text-[#FFD700] transition-colors pr-4">
+                      {player.name}
+                    </h3>
+                    <p className="text-[10px] text-[#C3CAAC] font-data">
+                      {player.position} • OVR <span className="text-[#B9F600] font-bold">{player.ovr}</span>
+                    </p>
+                  </div>
+                </div>
+
+                <div className="border-t border-[#2D333B] pt-1.5 flex justify-between items-center text-[10px] font-data">
+                  <span className="text-[#C3CAAC]">시세</span>
+                  <span className="text-white font-bold">{formatBP(player.bpPrice)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="bg-[#161A1E] border border-dashed border-[#2D333B] rounded-xl p-4 text-center space-y-2">
+            <div className="w-10 h-10 bg-[#FFD700]/10 text-[#FFD700] rounded-full flex items-center justify-center mx-auto">
+              <span className="material-symbols-outlined text-2xl">star_outline</span>
+            </div>
+            <div>
+              <p className="text-xs font-bold text-white">즐겨찾는 선수가 없습니다</p>
+              <p className="text-[11px] text-[#C3CAAC] mt-0.5">
+                선수 카드의 ⭐ 별 아이콘을 눌러 관심 선수를 등록하세요!
+              </p>
+            </div>
+            <button
+              onClick={() => onNavigateTab('search')}
+              className="px-3 py-1.5 bg-[#232B34] hover:bg-[#2E353F] text-[#B9F600] border border-[#B9F600]/40 rounded-lg text-xs font-data font-bold transition-all"
+            >
+              선수 검색 하러가기
+            </button>
+          </div>
+        )}
+      </section>
+
       {/* Trending Players */}
       <section className="px-4">
         <div className="flex justify-between items-center mb-3">
@@ -244,59 +337,84 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </div>
 
         <div className="space-y-2.5">
-          {trendingPlayers.map((player) => (
-            <div
-              key={player.id}
-              onClick={() => onSelectPlayer(player)}
-              className="bg-[#161A1E] border border-[#2D333B] rounded-xl p-3 flex items-center justify-between hover:border-[#B9F600]/50 transition-all cursor-pointer group"
-            >
-              <div className="flex items-center gap-3">
-                <div className="relative">
-                  <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-[#2D333B] group-hover:border-[#B9F600] transition-colors bg-[#232B34] flex-shrink-0">
-                    <img
-                      src={player.image}
-                      alt={player.name}
-                      className="w-full h-full object-cover"
-                    />
+          {trendingPlayers.map((player) => {
+            const isFav = favoriteIds.includes(player.id);
+            return (
+              <div
+                key={player.id}
+                onClick={() => onSelectPlayer(player)}
+                className="bg-[#161A1E] border border-[#2D333B] rounded-xl p-3 flex items-center justify-between hover:border-[#B9F600]/50 transition-all cursor-pointer group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-[#2D333B] group-hover:border-[#B9F600] transition-colors bg-[#232B34] flex-shrink-0">
+                      <img
+                        src={player.image}
+                        alt={player.name}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="absolute -bottom-1 -right-1 bg-[#2E353F] px-1 rounded border border-[#2D333B]">
+                      <span className="font-data text-[9px] font-bold text-white">
+                        {player.season}
+                      </span>
+                    </div>
                   </div>
-                  <div className="absolute -bottom-1 -right-1 bg-[#2E353F] px-1 rounded border border-[#2D333B]">
-                    <span className="font-data text-[9px] font-bold text-white">
-                      {player.season}
-                    </span>
+
+                  <div>
+                    <p className="font-semibold text-sm text-white group-hover:text-[#B9F600] transition-colors">
+                      {player.name}
+                    </p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="font-data text-[11px] text-[#C3CAAC]">
+                        {player.position}
+                      </span>
+                      <span className="text-[#C3CAAC] opacity-30">•</span>
+                      <span className="font-data text-[11px] text-[#B9F600]">
+                        OVR {player.ovr}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
-                <div>
-                  <p className="font-semibold text-sm text-white group-hover:text-[#B9F600] transition-colors">
-                    {player.name}
-                  </p>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="font-data text-[11px] text-[#C3CAAC]">
-                      {player.position}
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleFavorite(player.id);
+                    }}
+                    className={`p-1.5 rounded-lg transition-all ${
+                      isFav
+                        ? 'text-[#FFD700] bg-[#FFD700]/10'
+                        : 'text-[#8A99AD] hover:text-[#FFD700] hover:bg-[#232B34]'
+                    }`}
+                    title={isFav ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+                  >
+                    <span
+                      className="material-symbols-outlined text-lg"
+                      style={{ fontVariationSettings: isFav ? "'FILL' 1" : "'FILL' 0" }}
+                    >
+                      star
                     </span>
-                    <span className="text-[#C3CAAC] opacity-30">•</span>
-                    <span className="font-data text-[11px] text-[#B9F600]">
-                      OVR {player.ovr}
-                    </span>
+                  </button>
+
+                  <div className="text-right">
+                    <p className="font-data text-xs font-semibold text-white">
+                      {formatBP(player.bpPrice)}
+                    </p>
+                    <p
+                      className={`font-data text-[11px] font-bold mt-0.5 ${
+                        player.priceTrendPercent >= 0 ? 'text-[#00FF87]' : 'text-[#FF4B4B]'
+                      }`}
+                    >
+                      {player.priceTrendPercent >= 0 ? '▲' : '▼'}{' '}
+                      {Math.abs(player.priceTrendPercent)}%
+                    </p>
                   </div>
                 </div>
               </div>
-
-              <div className="text-right">
-                <p className="font-data text-xs font-semibold text-white">
-                  {formatBP(player.bpPrice)}
-                </p>
-                <p
-                  className={`font-data text-[11px] font-bold mt-0.5 ${
-                    player.priceTrendPercent >= 0 ? 'text-[#00FF87]' : 'text-[#FF4B4B]'
-                  }`}
-                >
-                  {player.priceTrendPercent >= 0 ? '▲' : '▼'}{' '}
-                  {Math.abs(player.priceTrendPercent)}%
-                </p>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </section>
 

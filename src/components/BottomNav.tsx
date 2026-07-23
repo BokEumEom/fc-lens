@@ -12,13 +12,12 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, setActiveTab })
     { id: 'search', label: '선수 검색', icon: 'person_search' },
     { id: 'squad', label: '스쿼드', icon: 'analytics' },
     { id: 'ranker', label: '랭킹', icon: 'leaderboard' },
-    { id: 'nexon', label: '넥슨 API', icon: 'sports_esports' },
   ];
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 p-2 sm:p-3 pointer-events-none">
       <div className="max-w-md mx-auto pointer-events-auto bg-[#12161C]/95 backdrop-blur-2xl border border-[#2D333B]/90 rounded-2xl sm:rounded-3xl shadow-[0_10px_30px_rgba(0,0,0,0.8)] p-1.5 transition-all">
-        <div className="grid grid-cols-5 gap-1 items-center justify-items-stretch">
+        <div className="grid grid-cols-4 gap-1 items-center justify-items-stretch">
           {tabs.map((tab) => {
             const isActive = activeTab === tab.id;
             return (
