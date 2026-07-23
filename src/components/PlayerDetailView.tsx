@@ -474,65 +474,45 @@ export const PlayerDetailView: React.FC<PlayerDetailViewProps> = ({
           </div>
 
           {/* Dual Radar Chart Panel */}
-          <div className="glass-card rounded-2xl p-4 flex flex-col items-center justify-center space-y-3">
-            <div className="text-xs font-bold text-[#C3CAAC] flex items-center gap-4">
+          <div className="glass-card rounded-2xl p-4 flex flex-col items-center justify-center space-y-2">
+            <div className="text-xs font-bold text-[#C3CAAC] flex items-center justify-between w-full px-2">
               <span className="flex items-center gap-1.5 text-[#B9F600]">
                 <span className="w-2.5 h-2.5 rounded-full bg-[#B9F600] inline-block shadow-[0_0_8px_#B9F600]" />
                 {player.name} (+{selectedGrade})
               </span>
+              <span className="text-[10px] text-[#8A99AD] font-mono">Radar Overview</span>
               <span className="flex items-center gap-1.5 text-[#38BDF8]">
                 <span className="w-2.5 h-2.5 rounded-full bg-[#38BDF8] inline-block shadow-[0_0_8px_#38BDF8]" />
                 {comparePlayer.name} (+{compareGrade})
               </span>
             </div>
 
-            <div className="relative w-56 h-56 my-2">
-              <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100">
-                {/* Background Web Polygons */}
-                <polygon fill="none" points="50,12 88,34 88,76 50,98 12,76 12,34" stroke="#2D333B" strokeWidth="0.8" />
-                <polygon fill="none" points="50,26 73,39 73,65 50,78 27,65 27,39" stroke="#2D333B" strokeWidth="0.6" />
-                <polygon fill="none" points="50,38 60,45 60,57 50,64 40,57 40,45" stroke="#2D333B" strokeWidth="0.5" />
-
-                {/* Player 1 Stats Polygon (Neon Green) */}
-                <polygon
-                  fill="rgba(185, 246, 0, 0.2)"
-                  points={getRadarCoordinates(p1Stats)}
-                  stroke="#B9F600"
-                  strokeWidth="2"
-                />
-
-                {/* Player 2 Stats Polygon (Sky Blue) */}
-                <polygon
-                  fill="rgba(56, 189, 248, 0.2)"
-                  points={getRadarCoordinates(p2Stats)}
-                  stroke="#38BDF8"
-                  strokeWidth="2"
-                />
-              </svg>
-
-              {/* Vertices Labels with values */}
-              {p1Stats.map((st, idx) => {
-                const p2Val = p2Stats[idx]?.value || 0;
-                const positions = [
-                  'absolute -top-3 left-1/2 -translate-x-1/2',
-                  'absolute top-1/4 -right-9',
-                  'absolute bottom-1/4 -right-9',
-                  'absolute -bottom-3 left-1/2 -translate-x-1/2',
-                  'absolute bottom-1/4 -left-9',
-                  'absolute top-1/4 -left-9',
-                ];
-
-                return (
-                  <div key={st.label} className={`${positions[idx]} font-data text-[9px] text-center bg-[#0F1318]/90 px-1.5 py-0.5 rounded border border-[#2D333B]`}>
-                    <div className="font-bold text-[#C3CAAC]">{st.label}</div>
-                    <div className="flex gap-1 justify-center font-bold">
-                      <span className="text-[#B9F600]">{st.value}</span>
-                      <span className="text-zinc-500">:</span>
-                      <span className="text-[#38BDF8]">{p2Val}</span>
-                    </div>
-                  </div>
-                );
-              })}
+            <div className="w-full h-64 flex items-center justify-center">
+              <ResponsiveContainer width="100%" height={250}>
+                <RadarChart cx="50%" cy="50%" outerRadius="70%" data={rechartsData}>
+                  <PolarGrid stroke="#2D333B" />
+                  <PolarAngleAxis
+                    dataKey="attribute"
+                    tick={{ fill: '#C3CAAC', fontSize: 11, fontWeight: 'bold' }}
+                  />
+                  <PolarRadiusAxis angle={30} domain={[0, maxStat]} tick={false} axisLine={false} />
+                  <Tooltip content={<CustomRadarTooltip />} />
+                  <Radar
+                    name={player.name}
+                    dataKey="p1"
+                    stroke="#B9F600"
+                    fill="#B9F600"
+                    fillOpacity={0.35}
+                  />
+                  <Radar
+                    name={comparePlayer.name}
+                    dataKey="p2"
+                    stroke="#38BDF8"
+                    fill="#38BDF8"
+                    fillOpacity={0.35}
+                  />
+                </RadarChart>
+              </ResponsiveContainer>
             </div>
           </div>
 
@@ -629,57 +609,26 @@ export const PlayerDetailView: React.FC<PlayerDetailViewProps> = ({
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {/* Radar Chart Panel */}
-            <div className="glass-card rounded-xl p-4 flex flex-col items-center justify-center min-h-[220px]">
-              <div className="relative w-44 h-44">
-                <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100">
-                  {/* Background Web Polygons */}
-                  <polygon
-                    fill="none"
-                    points="50,12 88,34 88,76 50,98 12,76 12,34"
-                    stroke="#2D333B"
-                    strokeWidth="0.8"
-                  />
-                  <polygon
-                    fill="none"
-                    points="50,26 73,39 73,65 50,78 27,65 27,39"
-                    stroke="#2D333B"
-                    strokeWidth="0.6"
-                  />
-                  <polygon
-                    fill="none"
-                    points="50,38 60,45 60,57 50,64 40,57 40,45"
-                    stroke="#2D333B"
-                    strokeWidth="0.5"
-                  />
-
-                  {/* Player Stats Radar Polygon */}
-                  <polygon
-                    fill="rgba(185, 246, 0, 0.25)"
-                    points={getRadarCoordinates(p1Stats)}
-                    stroke="#B9F600"
-                    strokeWidth="1.8"
-                  />
-                </svg>
-
-                {/* Labels on Vertices */}
-                <div className="absolute -top-1 left-1/2 -translate-x-1/2 font-data text-[10px] text-[#C3CAAC]">
-                  PAC
-                </div>
-                <div className="absolute top-1/4 -right-3 font-data text-[10px] text-[#C3CAAC]">
-                  SHO
-                </div>
-                <div className="absolute bottom-1/4 -right-3 font-data text-[10px] text-[#C3CAAC]">
-                  PAS
-                </div>
-                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 font-data text-[10px] text-[#C3CAAC]">
-                  DRI
-                </div>
-                <div className="absolute bottom-1/4 -left-3 font-data text-[10px] text-[#C3CAAC]">
-                  DEF
-                </div>
-                <div className="absolute top-1/4 -left-3 font-data text-[10px] text-[#C3CAAC]">
-                  PHY
-                </div>
+            <div className="glass-card rounded-xl p-3 flex flex-col items-center justify-center min-h-[240px]">
+              <div className="w-full h-56 flex items-center justify-center">
+                <ResponsiveContainer width="100%" height={220}>
+                  <RadarChart cx="50%" cy="50%" outerRadius="70%" data={rechartsData}>
+                    <PolarGrid stroke="#2D333B" />
+                    <PolarAngleAxis
+                      dataKey="attribute"
+                      tick={{ fill: '#C3CAAC', fontSize: 11, fontWeight: 'bold' }}
+                    />
+                    <PolarRadiusAxis angle={30} domain={[0, maxStat]} tick={false} axisLine={false} />
+                    <Tooltip content={<CustomRadarTooltip />} />
+                    <Radar
+                      name={player.name}
+                      dataKey="p1"
+                      stroke="#B9F600"
+                      fill="#B9F600"
+                      fillOpacity={0.35}
+                    />
+                  </RadarChart>
+                </ResponsiveContainer>
               </div>
             </div>
 
