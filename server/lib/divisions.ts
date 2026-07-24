@@ -1,0 +1,20 @@
+// 넥슨 FC Online 공식경기 등급 코드 → 한글 라벨 매핑
+export const DIVISION_MAP: Record<number, string> = {
+  800: "슈퍼챔피언스 (Super Champions)",
+  900: "챔피언스 (Champions)",
+  1100: "챌린저 1 (Challenger 1)",
+  1200: "챌린저 2 (Challenger 2)",
+  1300: "챌린저 3 (Challenger 3)",
+  2000: "월드클래스 1 (World Class 1)",
+  2100: "월드클래스 2 (World Class 2)",
+  2200: "월드클래스 3 (World Class 3)",
+  2300: "프로 1 (Professional 1)",
+  2400: "프로 2 (Professional 2)",
+  2500: "프로 3 (Professional 3)",
+  2600: "세미프로 1 (Semi-Pro 1)",
+  2700: "세미프로 2 (Semi-Pro 2)",
+  2800: "세미프로 3 (Semi-Pro 3)",
+  2900: "아마추어 1 (Amateur 1)",
+  3000: "아마추어 2 (Amateur 2)",
+  3100: "아마추어 3 (Amateur 3)",
+};
