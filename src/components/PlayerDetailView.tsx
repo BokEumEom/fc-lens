@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Radar,
   RadarChart,
@@ -7,6 +7,11 @@ import {
   PolarRadiusAxis,
   ResponsiveContainer,
   Tooltip,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
 } from 'recharts';
 import { Player } from '../types';
 import { formatBP } from '../data/mockData';
@@ -38,6 +43,29 @@ export const PlayerDetailView: React.FC<PlayerDetailViewProps> = ({
   const [comparePlayer, setComparePlayer] = useState<Player | null>(null);
   const [compareGrade, setCompareGrade] = useState(1);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
+
+  // Personal Notes State
+  const [note, setNote] = useState<string>('');
+  const [saveStatus, setSaveStatus] = useState<string>('');
+
+  useEffect(() => {
+    const savedNote = localStorage.getItem(`player_note_${player.id}`) || '';
+    setNote(savedNote);
+    setSaveStatus('');
+  }, [player.id]);
+
+  const handleSaveNote = () => {
+    localStorage.setItem(`player_note_${player.id}`, note);
+    setSaveStatus('저장되었습니다!');
+    setTimeout(() => setSaveStatus(''), 2500);
+  };
+
+  const handleClearNote = () => {
+    localStorage.removeItem(`player_note_${player.id}`);
+    setNote('');
+    setSaveStatus('삭제되었습니다.');
+    setTimeout(() => setSaveStatus(''), 2500);
+  };
 
   // Similar players calculation (same position or club or class)
   const similarPlayers = allPlayers
@@ -132,6 +160,78 @@ export const PlayerDetailView: React.FC<PlayerDetailViewProps> = ({
       );
     }
     return null;
+  };
+
+  // Generate detailed daily market value trend data for recharts line chart
+  const generatePriceTrendHistory = (p: Player, timeRange: '1W' | '1M' | '3M') => {
+    const days = timeRange === '1W' ? 7 : timeRange === '1M' ? 30 : 90;
+    const currentPrice = p.bpPrice;
+    const trendPercent = p.priceTrendPercent || 0;
+    const startPrice = currentPrice / (1 + trendPercent / 100);
+
+    const data = [];
+    const today = new Date();
+
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const dateStr = `${d.getMonth() + 1}/${d.getDate()}`;
+      const fullDate = d.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
+
+      const progress = (days - 1 - i) / (days - 1 || 1);
+      const basePrice = startPrice + (currentPrice - startPrice) * progress;
+
+      // Realistic wave fluctuation
+      const seed = (p.id.charCodeAt(0) + i * 23) % 100;
+      const wave =
+        Math.sin(i / 2.5 + p.id.length) * (currentPrice * 0.018) +
+        ((seed - 50) / 100) * (currentPrice * 0.012);
+
+      const price = i === 0 ? currentPrice : Math.round(basePrice + wave);
+
+      data.push({
+        date: dateStr,
+        fullDate,
+        price: Math.max(1000000, price),
+        formattedPrice: formatBP(Math.max(1000000, price)),
+      });
+    }
+
+    return data;
+  };
+
+  const priceTrendData = generatePriceTrendHistory(player, selectedTimeRange);
+
+  const CustomPriceTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      return (
+        <div className="bg-[#141C25]/95 border border-[#2D333B] p-2.5 rounded-xl shadow-2xl font-data text-xs space-y-1">
+          <p className="text-[10px] text-[#C3CAAC]">{data.fullDate}</p>
+          <div className="flex items-center gap-1.5">
+            <span
+              className={`w-2 h-2 rounded-full inline-block ${
+                player.priceTrendPercent >= 0
+                  ? 'bg-[#00FF87] shadow-[0_0_8px_#00FF87]'
+                  : 'bg-[#FF4B4B] shadow-[0_0_8px_#FF4B4B]'
+              }`}
+            />
+            <p className="text-white font-black text-sm">{data.formattedPrice}</p>
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  const formatYAxisBP = (value: number) => {
+    if (value >= 100000000) {
+      return `${(value / 100000000).toFixed(1)}억`;
+    }
+    if (value >= 10000) {
+      return `${(value / 10000).toFixed(0)}만`;
+    }
+    return `${value}`;
   };
 
   const handleShare = () => {
@@ -316,42 +416,56 @@ export const PlayerDetailView: React.FC<PlayerDetailViewProps> = ({
             </div>
           </div>
 
-          {/* SVG Bar Chart Visualization */}
-          <div className="pt-2">
-            <div className="h-28 w-full flex items-end gap-1.5 pt-2 border-b border-[#2D333B] pb-1">
-              {player.priceHistory.map((pt, i) => {
-                const maxPrice = Math.max(...player.priceHistory.map((p) => p.price));
-                const minPrice = Math.min(...player.priceHistory.map((p) => p.price));
-                const heightPercent =
-                  maxPrice === minPrice
-                    ? 60
-                    : 25 + ((pt.price - minPrice) / (maxPrice - minPrice)) * 70;
-                const isLast = i === player.priceHistory.length - 1;
-
-                return (
-                  <div key={i} className="flex-1 flex flex-col items-center gap-1 group relative">
-                    {/* Tooltip on hover */}
-                    <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute -top-7 bg-[#141C25] text-white text-[9px] font-data px-1.5 py-0.5 rounded border border-[#2D333B] whitespace-nowrap z-20 pointer-events-none">
-                      {formatBP(pt.price)}
-                    </div>
-                    <div
-                      className={`w-full rounded-t-xs transition-all duration-300 ${
-                        isLast
-                          ? 'bg-[#B9F600] border-t-2 border-white shadow-[0_0_8px_rgba(185,246,0,0.6)]'
-                          : 'bg-[#B9F600]/30 group-hover:bg-[#B9F600]/60'
-                      }`}
-                      style={{ height: `${heightPercent}%` }}
-                    ></div>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="flex justify-between mt-2 font-data text-[10px] text-[#C3CAAC]">
-              {player.priceHistory.map((pt, i) => (
-                <span key={i}>{pt.date}</span>
-              ))}
-            </div>
+          {/* Recharts Area/Line Chart for Market Value Trend */}
+          <div className="pt-2 h-48 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={priceTrendData} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="priceGradientGreen" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#00FF87" stopOpacity={0.4} />
+                    <stop offset="95%" stopColor="#00FF87" stopOpacity={0.0} />
+                  </linearGradient>
+                  <linearGradient id="priceGradientRed" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#FF4B4B" stopOpacity={0.4} />
+                    <stop offset="95%" stopColor="#FF4B4B" stopOpacity={0.0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#2D333B" vertical={false} />
+                <XAxis
+                  dataKey="date"
+                  tick={{ fill: '#8A99AD', fontSize: 10 }}
+                  axisLine={{ stroke: '#2D333B' }}
+                  tickLine={false}
+                  interval={selectedTimeRange === '1W' ? 0 : selectedTimeRange === '1M' ? 5 : 14}
+                />
+                <YAxis
+                  tickFormatter={formatYAxisBP}
+                  tick={{ fill: '#8A99AD', fontSize: 10 }}
+                  axisLine={false}
+                  tickLine={false}
+                  domain={['auto', 'auto']}
+                />
+                <Tooltip content={<CustomPriceTooltip />} />
+                <Area
+                  type="monotone"
+                  dataKey="price"
+                  stroke={player.priceTrendPercent >= 0 ? '#00FF87' : '#FF4B4B'}
+                  strokeWidth={2}
+                  fillOpacity={1}
+                  fill={
+                    player.priceTrendPercent >= 0
+                      ? 'url(#priceGradientGreen)'
+                      : 'url(#priceGradientRed)'
+                  }
+                  activeDot={{
+                    r: 5,
+                    fill: player.priceTrendPercent >= 0 ? '#00FF87' : '#FF4B4B',
+                    stroke: '#FFFFFF',
+                    strokeWidth: 2,
+                  }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
         </div>
       </section>
@@ -727,6 +841,57 @@ export const PlayerDetailView: React.FC<PlayerDetailViewProps> = ({
         </div>
       </section>
 
+      {/* Personal Notes Section */}
+      <section className="px-4">
+        <div className="glass-card rounded-2xl p-4 space-y-3 border border-[#2D333B]">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-[#B9F600] text-lg">edit_note</span>
+              <h2 className="text-sm font-bold text-white">나만의 선수 메모</h2>
+              <span className="text-[10px] text-[#8A99AD] font-data bg-[#141C25] px-2 py-0.5 rounded-full border border-[#2D333B]">
+                개인 기기에 저장됨
+              </span>
+            </div>
+            {saveStatus && (
+              <span className="text-xs font-bold text-[#B9F600] animate-fade-in font-data">
+                {saveStatus}
+              </span>
+            )}
+          </div>
+
+          <textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder={`${player.name} 선수에 대한 평가, 체감 후기, 강화 목표, 적정 매수/매도 가격 등을 기록해보세요...`}
+            rows={3}
+            className="w-full bg-[#0F1318]/80 text-xs text-white placeholder-[#8A99AD]/60 p-3 rounded-xl border border-[#2D333B] focus:border-[#B9F600] focus:ring-1 focus:ring-[#B9F600] focus:outline-none transition-all resize-none font-sans"
+          />
+
+          <div className="flex items-center justify-between pt-1">
+            <span className="text-[11px] text-[#8A99AD] font-data">
+              {note.length}자
+            </span>
+            <div className="flex items-center gap-2">
+              {note && (
+                <button
+                  onClick={handleClearNote}
+                  className="px-3 py-1.5 bg-[#232B34] hover:bg-red-500/20 text-[#8A99AD] hover:text-red-400 text-xs font-bold rounded-lg border border-[#2D333B] transition-colors"
+                >
+                  삭제
+                </button>
+              )}
+              <button
+                onClick={handleSaveNote}
+                className="flex items-center gap-1.5 px-4 py-1.5 bg-[#B9F600] hover:bg-[#a3d800] text-[#0A0E12] font-bold text-xs rounded-lg shadow-[0_0_12px_rgba(185,246,0,0.25)] transition-all active:scale-95"
+              >
+                <span className="material-symbols-outlined text-sm">save</span>
+                <span>메모 저장</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Similar Profiles */}
       {similarPlayers.length > 0 && (
         <section className="px-4">
@@ -774,6 +939,41 @@ export const PlayerDetailView: React.FC<PlayerDetailViewProps> = ({
           </div>
         </section>
       )}
+
+      {/* Floating Compare Action Button */}
+      <div className="fixed bottom-24 right-4 sm:right-6 z-40 flex flex-col items-end gap-2 pointer-events-auto">
+        {comparePlayer ? (
+          <div className="flex items-center gap-2 bg-[#141C25]/95 backdrop-blur-md border border-[#38BDF8]/60 p-1.5 pl-3 rounded-full shadow-[0_8px_25px_rgba(0,0,0,0.6)]">
+            <span className="text-xs font-bold text-[#38BDF8] flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-[#38BDF8] animate-pulse inline-block" />
+              VS {comparePlayer.name}
+            </span>
+            <button
+              onClick={() => setIsPickerOpen(true)}
+              className="px-2.5 py-1 bg-[#38BDF8]/20 hover:bg-[#38BDF8]/40 text-[#38BDF8] text-[11px] font-bold rounded-full transition-colors"
+            >
+              변경
+            </button>
+            <button
+              onClick={() => setComparePlayer(null)}
+              className="p-1 text-[#8A99AD] hover:text-white transition-colors rounded-full"
+              title="비교 해제"
+            >
+              <span className="material-symbols-outlined text-[16px]">close</span>
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setIsPickerOpen(true)}
+            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-[#38BDF8] to-[#0284C7] hover:from-[#0284C7] hover:to-[#0369A1] text-white font-bold text-xs rounded-full shadow-[0_8px_25px_rgba(56,189,248,0.4)] hover:shadow-[0_10px_30px_rgba(56,189,248,0.6)] transition-all hover:scale-105 active:scale-95 group"
+          >
+            <span className="material-symbols-outlined text-base group-hover:rotate-180 transition-transform duration-300">
+              compare_arrows
+            </span>
+            <span>선수 VS 비교</span>
+          </button>
+        )}
+      </div>
 
       {/* Player Picker Modal for Comparison */}
       <PlayerPickerModal

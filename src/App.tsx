@@ -9,6 +9,7 @@ import { PlayerSearchView } from './components/PlayerSearchView';
 import { PlayerDetailView } from './components/PlayerDetailView';
 import { SquadAnalysisView } from './components/SquadAnalysisView';
 import { RankerView } from './components/RankerView';
+import { NexonUserView } from './components/NexonUserView';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabType>('home');
@@ -54,7 +55,7 @@ export default function App() {
     setSelectedPlayer(null);
   };
 
-  const handleNavigateTab = (tab: 'search' | 'squad' | 'ranker') => {
+  const handleNavigateTab = (tab: TabType) => {
     setActiveTab(tab);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };

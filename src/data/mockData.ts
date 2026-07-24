@@ -60,7 +60,7 @@ export const PLAYERS: Player[] = [
     phy: 92,
     weakFoot: 5,
     skillMoves: 5,
-    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCzOweA2eOOGedLYcc4Zaoghj2_ym9cH-1h8ga7JAH3mjJIGaYrAJBXaZtf28BPvubG4t1AvzIAEtevlqj9o2yzwgUNrwRBq-RNlwcRknRYUxlQVBf1xty5A6_zBV1k3K2fMnwpEqunFvurpUobPgHBxFf_34fCFu0QGY8OASlvVb4UdkYowNODlajbua6ld-MMyMNkiP4U4o6cz7U97lhZtVzM3sC9QxAbC3Iln0VFKc8YTKPkxHIIX1JyukwS2RImONEfMleJ__UI',
+    image: '/src/assets/images/son_heung_min_1784796252016.jpg',
     priceHistory: [
       { date: '01 AUG', price: 1120000000 },
       { date: '05 AUG', price: 1150000000 },

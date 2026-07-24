@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Player } from '../types';
+import { Player, TabType } from '../types';
 import { POPULAR_SEASONS, formatBP } from '../data/mockData';
 
 interface HomeViewProps {
@@ -7,7 +7,7 @@ interface HomeViewProps {
   favoriteIds: string[];
   onToggleFavorite: (playerId: string) => void;
   onSelectPlayer: (player: Player) => void;
-  onNavigateTab: (tab: 'search' | 'squad' | 'ranker') => void;
+  onNavigateTab: (tab: TabType) => void;
   onFilterSeason: (seasonId: string) => void;
 }
 
@@ -113,26 +113,19 @@ export const HomeView: React.FC<HomeViewProps> = ({
             onClick={() => onNavigateTab('search')}
             className="bg-[#B9F600] text-[#263500] font-data text-xs font-bold px-4 py-2 rounded-full whitespace-nowrap shadow-sm hover:brightness-105 active:scale-95 transition-all"
           >
-            Player Search
+            선수 검색
           </button>
           <button
             onClick={() => onNavigateTab('squad')}
             className="bg-[#232B34] border border-[#2D333B] text-white font-data text-xs px-4 py-2 rounded-full whitespace-nowrap hover:bg-[#2e353f] transition-all"
           >
-            Squad Analysis
-          </button>
-          <button
-            onClick={() => onNavigateTab('nexon')}
-            className="bg-[#232B34] border border-[#B9F600]/40 text-[#B9F600] font-data text-xs px-4 py-2 rounded-full whitespace-nowrap hover:bg-[#2e353f] transition-all flex items-center gap-1 font-bold"
-          >
-            <span className="material-symbols-outlined text-[14px]">sports_esports</span>
-            NEXON Open API
+            스쿼드 메이커
           </button>
           <button
             onClick={() => onNavigateTab('ranker')}
             className="bg-[#232B34] border border-[#2D333B] text-white font-data text-xs px-4 py-2 rounded-full whitespace-nowrap hover:bg-[#2e353f] transition-all"
           >
-            Manager Search
+            랭킹 & 메타
           </button>
         </div>
       </section>

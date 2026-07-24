@@ -37,7 +37,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({ onSelectPlayer, players, t
         </div>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
         {/* Notification Button */}
         <div className="relative">
           <button
