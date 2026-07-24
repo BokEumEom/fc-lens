@@ -45,8 +45,9 @@ async function startServer() {
   // Check NEXON API status
   app.get("/api/nexon/status", (req, res) => {
     const key = process.env.NEXON_OPENAPI_KEY;
+    const isConfigured = Boolean(key && key !== "test_nxapi_key_here" && key.trim().length > 0);
     res.json({
-      configured: Boolean(key && key !== "test_nxapi_key_here"),
+      configured: isConfigured,
       docsUrl: "https://openapi.nexon.com/ko/game/fconline/?id=2",
       endpoints: [
         { id: 1, name: "계정 정보 (Account Info)", path: "/api/nexon/account" },
@@ -87,32 +88,27 @@ async function startServer() {
     }
   });
 
-  // 1. 계정 정보 조회 (Account Info: OUID, level, max division, match list)
-  app.get("/api/nexon/account", async (req, res) => {
-    const nickname = (req.query.nickname as string) || "두치와뿌꾸";
+  // Helper function to validate NEXON API Key availability
+  const checkApiKey = (req: express.Request, res: express.Response): string | null => {
     const customApiKey = req.headers["x-nxopen-api-key"] as string;
     const apiKey = customApiKey || process.env.NEXON_OPENAPI_KEY;
 
-    if (!apiKey || apiKey === "test_nxapi_key_here") {
-      return res.json({
-        isDemoData: true,
-        message: "No live NEXON API key provided. Returning cached FC Online account data.",
-        account: {
-          ouid: "demo_ouid_fconline_1029",
-          nickname: nickname,
-          level: 284,
-          maxDivision: "슈퍼챔피언스 (Super Champions)",
-          divisionCode: 800,
-          achievementDate: "2024-04-12T14:30:00",
-          matchTypeCounts: {
-            official1v1: 1420,
-            officialVolta: 380,
-            customMatch: 120,
-          }
-        },
-        recentMatchIds: ["m_001", "m_002", "m_003", "m_004", "m_005"],
+    if (!apiKey || apiKey === "test_nxapi_key_here" || !apiKey.trim()) {
+      res.status(400).json({
+        error: true,
+        message: "NEXON_OPENAPI_KEY 환경변수가 설정되지 않았습니다. .env 파일에 NEXON_OPENAPI_KEY를 발급받아 입력해주세요. (https://openapi.nexon.com)"
       });
+      return null;
     }
+    return apiKey;
+  };
+
+  // 1. 계정 정보 조회 (Account Info: OUID, level, max division, match list)
+  app.get("/api/nexon/account", async (req, res) => {
+    const apiKey = checkApiKey(req, res);
+    if (!apiKey) return;
+
+    const nickname = (req.query.nickname as string) || "두치와뿌꾸";
 
     try {
       // 1-1 OUID lookup
@@ -125,7 +121,7 @@ async function startServer() {
         const errJson = await idRes.json().catch(() => ({}));
         res.status(idRes.status).json({
           error: true,
-          message: errJson.error?.message || `User '${nickname}' not found in NEXON FC Online.`,
+          message: errJson.error?.message || `구단주 '${nickname}' 넥슨 FC Online 검색 결과가 없습니다.`,
         });
         return;
       }
@@ -169,7 +165,6 @@ async function startServer() {
       const matchIds = matchRes.ok ? await matchRes.json() : [];
 
       res.json({
-        isDemoData: false,
         account: {
           ouid,
           nickname: basicData.nickname || nickname,
@@ -187,223 +182,13 @@ async function startServer() {
 
   // 2. 최근 매치 기록 목록 조회 (User Recent Matches History Endpoint)
   app.get("/api/nexon/user-matches", async (req, res) => {
+    const apiKey = checkApiKey(req, res);
+    if (!apiKey) return;
+
     let ouid = req.query.ouid as string;
     const nickname = req.query.nickname as string;
     const matchType = (req.query.matchtype as string) || "50";
     const limit = parseInt((req.query.limit as string) || "10", 10);
-    const customApiKey = req.headers["x-nxopen-api-key"] as string;
-    const apiKey = customApiKey || process.env.NEXON_OPENAPI_KEY;
-
-    if (!apiKey || apiKey === "test_nxapi_key_here") {
-      return res.json({
-        isDemoData: true,
-        ouid: ouid || "demo_ouid_fconline_1029",
-        matchType,
-        summary: {
-          totalMatches: 8,
-          wins: 5,
-          draws: 1,
-          losses: 2,
-          winRate: "62.5%",
-          avgGoals: "2.4",
-          avgPossession: "56%"
-        },
-        matches: [
-          {
-            matchId: "m_001",
-            matchDate: new Date(Date.now() - 3600000 * 2).toISOString(),
-            matchType: "공식경기 1vs1",
-            result: "승",
-            score: "3 : 1",
-            myGoals: 3,
-            opponentGoals: 1,
-            opponentNickname: "LensMaster_FC",
-            possession: 58,
-            shots: 9,
-            effectiveShots: 6,
-            passSuccessRate: 88,
-            tackleSuccessRate: 75,
-            mvpPlayer: "Kylian Mbappé (9.2점)",
-            controller: "pad",
-            stadium: "Stade Bollaert-Delelis",
-            myGoalScorers: [
-              { name: "Kylian Mbappé", goals: 2 },
-              { name: "Son Heung-min", goals: 1 }
-            ],
-            oppGoalScorers: [
-              { name: "Erling Haaland", goals: 1 }
-            ]
-          },
-          {
-            matchId: "m_002",
-            matchDate: new Date(Date.now() - 3600000 * 5).toISOString(),
-            matchType: "공식경기 1vs1",
-            result: "무",
-            score: "2 : 2",
-            myGoals: 2,
-            opponentGoals: 2,
-            opponentNickname: "RealMadrid_KR",
-            possession: 51,
-            shots: 7,
-            effectiveShots: 4,
-            passSuccessRate: 85,
-            tackleSuccessRate: 70,
-            mvpPlayer: "Vinícius Jr. (8.9점)",
-            controller: "pad",
-            stadium: "Santiago Bernabéu",
-            myGoalScorers: [
-              { name: "Jude Bellingham", goals: 1 },
-              { name: "Kylian Mbappé", goals: 1 }
-            ],
-            oppGoalScorers: [
-              { name: "Vinícius Jr.", goals: 2 }
-            ]
-          },
-          {
-            matchId: "m_003",
-            matchDate: new Date(Date.now() - 3600000 * 18).toISOString(),
-            matchType: "공식경기 1vs1",
-            result: "패",
-            score: "1 : 2",
-            myGoals: 1,
-            opponentGoals: 2,
-            opponentNickname: "Sonny7_Cap",
-            possession: 46,
-            shots: 5,
-            effectiveShots: 3,
-            passSuccessRate: 79,
-            tackleSuccessRate: 65,
-            mvpPlayer: "Harry Kane (8.7점)",
-            controller: "keyboard",
-            stadium: "Tottenham Hotspur Stadium",
-            myGoalScorers: [
-              { name: "Son Heung-min", goals: 1 }
-            ],
-            oppGoalScorers: [
-              { name: "Harry Kane", goals: 2 }
-            ]
-          },
-          {
-            matchId: "m_004",
-            matchDate: new Date(Date.now() - 3600000 * 24).toISOString(),
-            matchType: "공식경기 1vs1",
-            result: "승",
-            score: "4 : 0",
-            myGoals: 4,
-            opponentGoals: 0,
-            opponentNickname: "Gallardo_ST",
-            possession: 64,
-            shots: 12,
-            effectiveShots: 9,
-            passSuccessRate: 92,
-            tackleSuccessRate: 82,
-            mvpPlayer: "Kylian Mbappé (10.0점 MOM)",
-            controller: "pad",
-            stadium: "Etihad Stadium",
-            myGoalScorers: [
-              { name: "Kylian Mbappé", goals: 3 },
-              { name: "Jude Bellingham", goals: 1 }
-            ],
-            oppGoalScorers: []
-          },
-          {
-            matchId: "m_005",
-            matchDate: new Date(Date.now() - 3600000 * 32).toISOString(),
-            matchType: "공식경기 1vs1",
-            result: "승",
-            score: "2 : 1",
-            myGoals: 2,
-            opponentGoals: 1,
-            opponentNickname: "T1_Faker_Fan",
-            possession: 55,
-            shots: 8,
-            effectiveShots: 5,
-            passSuccessRate: 87,
-            tackleSuccessRate: 74,
-            mvpPlayer: "Son Heung-min (9.1점)",
-            controller: "pad",
-            stadium: "Allianz Arena",
-            myGoalScorers: [
-              { name: "Son Heung-min", goals: 2 }
-            ],
-            oppGoalScorers: [
-              { name: "Cristiano Ronaldo", goals: 1 }
-            ]
-          },
-          {
-            matchId: "m_006",
-            matchDate: new Date(Date.now() - 3600000 * 48).toISOString(),
-            matchType: "공식경기 1vs1",
-            result: "승",
-            score: "3 : 0",
-            myGoals: 3,
-            opponentGoals: 0,
-            opponentNickname: "Chelsea_Blue_Vibe",
-            possession: 60,
-            shots: 10,
-            effectiveShots: 7,
-            passSuccessRate: 90,
-            tackleSuccessRate: 80,
-            mvpPlayer: "Rodri (8.9점)",
-            controller: "pad",
-            stadium: "Stamford Bridge",
-            myGoalScorers: [
-              { name: "Kylian Mbappé", goals: 1 },
-              { name: "Rodri", goals: 1 },
-              { name: "Jude Bellingham", goals: 1 }
-            ],
-            oppGoalScorers: []
-          },
-          {
-            matchId: "m_007",
-            matchDate: new Date(Date.now() - 3600000 * 55).toISOString(),
-            matchType: "공식경기 1vs1",
-            result: "패",
-            score: "0 : 1",
-            myGoals: 0,
-            opponentGoals: 1,
-            opponentNickname: "Milan_Legend_10",
-            possession: 48,
-            shots: 6,
-            effectiveShots: 2,
-            passSuccessRate: 81,
-            tackleSuccessRate: 68,
-            mvpPlayer: "Kaká (8.5점)",
-            controller: "keyboard",
-            stadium: "San Siro",
-            myGoalScorers: [],
-            oppGoalScorers: [
-              { name: "Kaká", goals: 1 }
-            ]
-          },
-          {
-            matchId: "m_008",
-            matchDate: new Date(Date.now() - 3600000 * 70).toISOString(),
-            matchType: "공식경기 1vs1",
-            result: "승",
-            score: "4 : 2",
-            myGoals: 4,
-            opponentGoals: 2,
-            opponentNickname: "Paris_RMC_King",
-            possession: 57,
-            shots: 11,
-            effectiveShots: 8,
-            passSuccessRate: 86,
-            tackleSuccessRate: 71,
-            mvpPlayer: "Son Heung-min (9.4점)",
-            controller: "pad",
-            stadium: "Parc des Princes",
-            myGoalScorers: [
-              { name: "Kylian Mbappé", goals: 2 },
-              { name: "Son Heung-min", goals: 2 }
-            ],
-            oppGoalScorers: [
-              { name: "Ousmane Dembélé", goals: 2 }
-            ]
-          }
-        ]
-      });
-    }
 
     try {
       if (!ouid && nickname) {
@@ -418,7 +203,7 @@ async function startServer() {
       }
 
       if (!ouid) {
-        return res.status(400).json({ error: true, message: "OUID or valid nickname required" });
+        return res.status(400).json({ error: true, message: "OUID 또는 유효한 구단주명이 필요합니다." });
       }
 
       const matchRes = await fetch(
@@ -427,7 +212,7 @@ async function startServer() {
       );
 
       if (!matchRes.ok) {
-        return res.status(matchRes.status).json({ error: true, message: "Failed to fetch user matches from NEXON API" });
+        return res.status(matchRes.status).json({ error: true, message: "넥슨 API에서 매치 기록을 불러오지 못했습니다." });
       }
 
       const matchIds: string[] = await matchRes.json();
@@ -499,7 +284,6 @@ async function startServer() {
       const totalMatches = matchResults.length;
 
       res.json({
-        isDemoData: false,
         ouid,
         matchType,
         summary: {
@@ -518,69 +302,13 @@ async function startServer() {
     }
   });
 
-  // 2. 매치 정보 조회 (Match Details Endpoint)
+  // 2. 실시간 매치 정보 조회 (Live Match Endpoint)
   app.get("/api/nexon/live-match", async (req, res) => {
+    const apiKey = checkApiKey(req, res);
+    if (!apiKey) return;
+
     let nickname = (req.query.nickname as string) || "";
     let ouid = (req.query.ouid as string) || "";
-    const simulate = req.query.simulate === "true";
-    const customApiKey = req.headers["x-nxopen-api-key"] as string;
-    const apiKey = customApiKey || process.env.NEXON_OPENAPI_KEY;
-
-    // Demo fallback or explicit simulation
-    if (!apiKey || apiKey === "test_nxapi_key_here" || simulate) {
-      const isPlaying = nickname !== "노메치" && ouid !== "no_match";
-
-      if (!isPlaying) {
-        return res.json({
-          isPlaying: false,
-          message: "현재 진행 중인 실시간 경기가 없습니다."
-        });
-      }
-
-      const elapsedMinutes = Math.min(88, Math.max(15, Math.floor(((Date.now() / 1000) % 90))));
-
-      return res.json({
-        isPlaying: true,
-        liveMatch: {
-          matchId: `live_${Date.now()}`,
-          matchType: "공식경기 1vs1 (LIVE)",
-          currentMinute: elapsedMinutes,
-          period: elapsedMinutes > 45 ? "후반전" : "전반전",
-          stadium: "Wembley Stadium (London)",
-          myTeam: {
-            ouid: ouid || "demo_ouid_fconline_1029",
-            nickname: nickname || "두치와뿌꾸",
-            score: 2,
-            possession: 56,
-            shots: 7,
-            effectiveShots: 5,
-            color: "#B9F600",
-            scorers: [
-              { minute: 23, name: "Son Heung-min" },
-              { minute: 58, name: "Kylian Mbappé" }
-            ]
-          },
-          opponentTeam: {
-            ouid: "demo_opp_live_77",
-            nickname: "Real_Madrid_Galacticos",
-            score: 1,
-            possession: 44,
-            shots: 4,
-            effectiveShots: 2,
-            color: "#38BDF8",
-            scorers: [
-              { minute: 41, name: "Vinícius Jr." }
-            ]
-          },
-          recentEvents: [
-            { minute: 58, type: "GOAL", player: "Kylian Mbappé", team: "MY", text: "⚽ 킬리안 음바페 슈팅 득점! (Assist: Jude Bellingham)" },
-            { minute: 52, type: "YELLOW", player: "Rodri", team: "MY", text: "🟨 로드리 강력한 태클로 경고 수령" },
-            { minute: 41, type: "GOAL", player: "Vinícius Jr.", team: "OPP", text: "⚽ 비니시우스 주니오르 동점골!" },
-            { minute: 23, type: "GOAL", player: "Son Heung-min", team: "MY", text: "⚽ 손흥민 감아차기 선제골!" }
-          ]
-        }
-      });
-    }
 
     try {
       if (!ouid && nickname) {
@@ -595,7 +323,7 @@ async function startServer() {
       }
 
       if (!ouid) {
-        return res.status(400).json({ error: true, message: "OUID or valid nickname required" });
+        return res.status(400).json({ error: true, message: "OUID 또는 유효한 구단주명이 필요합니다." });
       }
 
       const matchRes = await fetch(
@@ -604,12 +332,12 @@ async function startServer() {
       );
 
       if (!matchRes.ok) {
-        return res.json({ isPlaying: false, message: "No live match detected" });
+        return res.json({ isPlaying: false, message: "진행 중인 실시간 경기가 감지되지 않았습니다." });
       }
 
       const matchIds: string[] = await matchRes.json();
       if (!matchIds || matchIds.length === 0) {
-        return res.json({ isPlaying: false, message: "No ongoing matches" });
+        return res.json({ isPlaying: false, message: "최근 경기 내역이 없습니다." });
       }
 
       const mDetailRes = await fetch(
@@ -618,7 +346,7 @@ async function startServer() {
       );
 
       if (!mDetailRes.ok) {
-        return res.json({ isPlaying: false, message: "Could not retrieve match details" });
+        return res.json({ isPlaying: false, message: "매치 상세 정보를 불러올 수 없습니다." });
       }
 
       const mData = await mDetailRes.json();
@@ -676,55 +404,12 @@ async function startServer() {
 
   // 3. 매치 상세 정보 조회 (Match Details Endpoint)
   app.get("/api/nexon/match-detail", async (req, res) => {
-    const matchId = (req.query.matchid as string) || "m_001";
-    const customApiKey = req.headers["x-nxopen-api-key"] as string;
-    const apiKey = customApiKey || process.env.NEXON_OPENAPI_KEY;
+    const apiKey = checkApiKey(req, res);
+    if (!apiKey) return;
 
-    if (!apiKey || apiKey === "test_nxapi_key_here" || matchId.startsWith("m_00")) {
-      return res.json({
-        isDemoData: true,
-        matchId: matchId,
-        matchDate: new Date(Date.now() - 3600000 * 2).toISOString(),
-        matchType: "공식경기 1vs1 (Official 1v1)",
-        stadium: "Stade Bollaert-Delelis (Lens)",
-        teams: [
-          {
-            ouid: "demo_ouid_fconline_1029",
-            nickname: "두치와뿌꾸",
-            result: "승",
-            score: 3,
-            possession: 58,
-            totalShots: 9,
-            effectiveShots: 6,
-            passSuccessRate: 88,
-            tackleSuccessRate: 75,
-            controller: "pad",
-            squad: [
-              { spId: 250102143, name: "Kylian Mbappé", season: "24TY", position: "ST", grade: 5, ovr: 118, goals: 2, assists: 1, rating: 9.2, image: "https://fconline.gcdn.nexon.com/live/externalAssets/common/players/p250102143.png" },
-              { spId: 240000001, name: "Son Heung-min", season: "24TY", position: "LW", grade: 5, ovr: 116, goals: 1, assists: 1, rating: 8.8, image: "https://fconline.gcdn.nexon.com/live/externalAssets/common/players/p240000001.png" },
-              { spId: 101000001, name: "Jude Bellingham", season: "24TY", position: "CAM", grade: 3, ovr: 115, goals: 0, assists: 1, rating: 8.1, image: "https://fconline.gcdn.nexon.com/live/externalAssets/common/players/p101000001.png" },
-              { spId: 101000002, name: "Rodri", season: "23HW", position: "CDM", grade: 5, ovr: 114, goals: 0, assists: 0, rating: 7.9, image: "https://fconline.gcdn.nexon.com/live/externalAssets/common/players/p101000002.png" },
-              { spId: 101000003, name: "Virgil van Dijk", season: "24TY", position: "CB", grade: 5, ovr: 116, goals: 0, assists: 0, rating: 8.4, image: "https://fconline.gcdn.nexon.com/live/externalAssets/common/players/p101000003.png" },
-            ]
-          },
-          {
-            ouid: "demo_ouid_opp_881",
-            nickname: "LensMaster_FC",
-            result: "패",
-            score: 1,
-            possession: 42,
-            totalShots: 4,
-            effectiveShots: 2,
-            passSuccessRate: 81,
-            tackleSuccessRate: 60,
-            controller: "keyboard",
-            squad: [
-              { spId: 250102144, name: "Erling Haaland", season: "24TY", position: "ST", grade: 3, ovr: 117, goals: 1, assists: 0, rating: 7.5, image: "https://fconline.gcdn.nexon.com/live/externalAssets/common/players/p250102144.png" },
-              { spId: 240000002, name: "Kevin De Bruyne", season: "23HW", position: "CAM", grade: 5, ovr: 115, goals: 0, assists: 1, rating: 7.2, image: "https://fconline.gcdn.nexon.com/live/externalAssets/common/players/p240000002.png" },
-            ]
-          }
-        ]
-      });
+    const matchId = (req.query.matchid as string);
+    if (!matchId) {
+      return res.status(400).json({ error: true, message: "matchid 파라미터가 필요합니다." });
     }
 
     try {
@@ -734,13 +419,12 @@ async function startServer() {
       );
 
       if (!response.ok) {
-        res.status(response.status).json({ error: true, message: "Match not found" });
+        res.status(response.status).json({ error: true, message: "매치 정보를 찾을 수 없습니다." });
         return;
       }
 
       const mData = await response.json();
       res.json({
-        isDemoData: false,
         matchId: mData.matchId,
         matchDate: mData.matchDate,
         matchType: mData.matchType,
@@ -753,23 +437,10 @@ async function startServer() {
 
   // 3. 랭커 정보 조회 (Ranker Top 100 Info Endpoint)
   app.get("/api/nexon/rankers", async (req, res) => {
-    const matchType = (req.query.matchtype as string) || "50";
-    const customApiKey = req.headers["x-nxopen-api-key"] as string;
-    const apiKey = customApiKey || process.env.NEXON_OPENAPI_KEY;
+    const apiKey = checkApiKey(req, res);
+    if (!apiKey) return;
 
-    if (!apiKey || apiKey === "test_nxapi_key_here") {
-      return res.json({
-        isDemoData: true,
-        matchType: "50 (공식경기 1v1)",
-        rankers: [
-          { rank: 1, nickname: "김정민_FC", ouid: "r_01", winRate: "72.4%", totalMatches: 482, topFormation: "4-2-3-1", mainPlayer: "24TY Kylian Mbappé (+5)", division: "Super Champions" },
-          { rank: 2, nickname: "원창연_Pro", ouid: "r_02", winRate: "70.1%", totalMatches: 510, topFormation: "4-3-3 Attack", mainPlayer: "24TY Son Heung-min (+5)", division: "Super Champions" },
-          { rank: 3, nickname: "신보석_Apex", ouid: "r_03", winRate: "68.9%", totalMatches: 420, topFormation: "4-2-2-2", mainPlayer: "ICON Zinedine Zidane (+3)", division: "Super Champions" },
-          { rank: 4, nickname: "곽준혁_T1", ouid: "r_04", winRate: "67.5%", totalMatches: 390, topFormation: "5-2-3 Counter", mainPlayer: "24TY Jude Bellingham (+5)", division: "Champions" },
-          { rank: 5, nickname: "박기영_GenG", ouid: "r_05", winRate: "66.8%", totalMatches: 460, topFormation: "4-1-2-1-2", mainPlayer: "24TY Ruud Gullit (+3)", division: "Champions" },
-        ]
-      });
-    }
+    const matchType = (req.query.matchtype as string) || "50";
 
     try {
       const response = await fetch(
@@ -778,13 +449,12 @@ async function startServer() {
       );
 
       if (!response.ok) {
-        res.status(response.status).json({ error: true, message: "Ranker data fetch failed" });
+        res.status(response.status).json({ error: true, message: "넥슨 API 랭커 정보 조회에 실패했습니다." });
         return;
       }
 
       const rankerData = await response.json();
       res.json({
-        isDemoData: false,
         matchType,
         rankers: rankerData,
       });
@@ -823,37 +493,10 @@ async function startServer() {
         }
         res.json({ type, data: metaJson });
       } else {
-        throw new Error("Failed to fetch static metadata");
+        res.status(metaRes.status).json({ error: true, message: "넥슨 static 메타데이터 조회 실패" });
       }
-    } catch (err) {
-      // Fallback local reference data
-      const fallbackMeta: Record<string, any> = {
-        matchtype: [
-          { matchtype: 50, desc: "공식경기 1vs1" },
-          { matchtype: 52, desc: "볼타 라이브 공식경기" },
-          { matchtype: 60, desc: "클래식 1vs1" },
-          { matchtype: 30, desc: "리그 친선" },
-        ],
-        seasonid: [
-          { seasonId: 101, className: "24TY", seasonImg: "https://fconline.gcdn.nexon.com/live/externalAssets/common/season/101.png" },
-          { seasonId: 102, className: "23HW", seasonImg: "https://fconline.gcdn.nexon.com/live/externalAssets/common/season/102.png" },
-          { seasonId: 103, className: "ICON", seasonImg: "https://fconline.gcdn.nexon.com/live/externalAssets/common/season/103.png" },
-          { seasonId: 104, className: "LN", seasonImg: "https://fconline.gcdn.nexon.com/live/externalAssets/common/season/104.png" },
-        ],
-        spposition: [
-          { spposition: 0, desc: "GK" },
-          { spposition: 3, desc: "CB" },
-          { spposition: 7, desc: "LB" },
-          { spposition: 8, desc: "RB" },
-          { spposition: 12, desc: "CDM" },
-          { spposition: 14, desc: "CM" },
-          { spposition: 18, desc: "CAM" },
-          { spposition: 23, desc: "LW" },
-          { spposition: 25, desc: "ST" },
-          { spposition: 27, desc: "RW" },
-        ]
-      };
-      res.json({ type, isFallback: true, data: fallbackMeta[type] || [] });
+    } catch (err: any) {
+      res.status(500).json({ error: true, message: err.message });
     }
   });
 
@@ -868,43 +511,17 @@ async function startServer() {
       playerPortraitUrl: `https://fconline.gcdn.nexon.com/live/externalAssets/common/players/p${spId}.png`,
       playerActionShotUrl: `https://fconline.gcdn.nexon.com/live/externalAssets/common/playersAction/p${spId}.png`,
       seasonBadgeUrl: `https://fconline.gcdn.nexon.com/live/externalAssets/common/season/${seasonId}.png`,
-      popularSpIds: [
-        { name: "Kylian Mbappé (24TY)", spId: "250102143" },
-        { name: "Son Heung-min (24TY)", spId: "240000001" },
-        { name: "Jude Bellingham (24TY)", spId: "101000001" },
-        { name: "Erling Haaland (24TY)", spId: "250102144" },
-        { name: "Zinedine Zidane (ICON)", spId: "100000001" },
-      ]
     });
   });
 
   // 6. 이적시장 거래 내역 조회 (Trade History Endpoint: Buy/Sell Records)
   app.get("/api/nexon/trade", async (req, res) => {
+    const apiKey = checkApiKey(req, res);
+    if (!apiKey) return;
+
     let ouid = req.query.ouid as string;
     const nickname = req.query.nickname as string;
     const tradeType = (req.query.tradetype as string) || "buy"; // "buy" or "sell"
-    const customApiKey = req.headers["x-nxopen-api-key"] as string;
-    const apiKey = customApiKey || process.env.NEXON_OPENAPI_KEY;
-
-    if (!apiKey || apiKey === "test_nxapi_key_here") {
-      const demoTrades = tradeType === "buy" ? [
-        { tradeDate: new Date(Date.now() - 3600000 * 3).toISOString(), saleType: "buy", spid: 250102143, name: "Kylian Mbappé", season: "24TY", grade: 5, value: 45000000000 },
-        { tradeDate: new Date(Date.now() - 3600000 * 20).toISOString(), saleType: "buy", spid: 240000001, name: "Son Heung-min", season: "24TY", grade: 5, value: 28000000000 },
-        { tradeDate: new Date(Date.now() - 3600000 * 48).toISOString(), saleType: "buy", spid: 101000001, name: "Jude Bellingham", season: "24TY", grade: 3, value: 18500000000 },
-        { tradeDate: new Date(Date.now() - 3600000 * 90).toISOString(), saleType: "buy", spid: 101000002, name: "Rodri", season: "23HW", grade: 5, value: 9800000000 },
-      ] : [
-        { tradeDate: new Date(Date.now() - 3600000 * 8).toISOString(), saleType: "sell", spid: 250102144, name: "Erling Haaland", season: "24TY", grade: 3, value: 32000000000 },
-        { tradeDate: new Date(Date.now() - 3600000 * 35).toISOString(), saleType: "sell", spid: 240000002, name: "Kevin De Bruyne", season: "23HW", grade: 5, value: 14200000000 },
-        { tradeDate: new Date(Date.now() - 3600000 * 72).toISOString(), saleType: "sell", spid: 100000001, name: "Zinedine Zidane", season: "ICON", grade: 1, value: 65000000000 },
-      ];
-
-      return res.json({
-        isDemoData: true,
-        tradeType,
-        totalCount: demoTrades.length,
-        trades: demoTrades,
-      });
-    }
 
     try {
       if (!ouid && nickname) {
@@ -919,7 +536,7 @@ async function startServer() {
       }
 
       if (!ouid) {
-        return res.status(400).json({ error: true, message: "OUID or valid nickname required" });
+        return res.status(400).json({ error: true, message: "OUID 또는 유효한 구단주명이 필요합니다." });
       }
 
       const response = await fetch(
@@ -928,12 +545,11 @@ async function startServer() {
       );
 
       if (!response.ok) {
-        return res.status(response.status).json({ error: true, message: "Failed to fetch trade history" });
+        return res.status(response.status).json({ error: true, message: "이적시장 거래 내역 조회 실패" });
       }
 
       const rawTrades = await response.json();
       res.json({
-        isDemoData: false,
         tradeType,
         totalCount: Array.isArray(rawTrades) ? rawTrades.length : 0,
         trades: rawTrades,
