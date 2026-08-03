@@ -17,7 +17,7 @@ import {
   ReferenceLine,
 } from 'recharts';
 
-type NexonTab = 'account' | 'match' | 'ranker' | 'metadata' | 'images' | 'trade';
+export type NexonTab = 'account' | 'match' | 'ranker' | 'trade';
 
 interface TradeItem {
   tradeDate: string;
@@ -636,9 +636,17 @@ export const MatchCardSkeleton: React.FC = () => (
   </div>
 );
 
-export const NexonUserView: React.FC = () => {
-  const [activeSubTab, setActiveSubTab] = useState<NexonTab>('account');
+interface NexonUserViewProps {
+  /** 현재 표시할 섹션. 하단 내비게이션(App)이 소유한다. */
+  activeSubTab: NexonTab;
+  /** 화면 내부에서 다른 섹션으로 이동할 때 호출 (예: 매치 상세 보기). */
+  onChangeSubTab: (tab: NexonTab) => void;
+}
 
+export const NexonUserView: React.FC<NexonUserViewProps> = ({
+  activeSubTab,
+  onChangeSubTab: setActiveSubTab,
+}) => {
   // API Key Management
   const [customKey, setCustomKey] = useState<string>(
     localStorage.getItem('fconline_nexon_api_key') || ''
@@ -720,25 +728,7 @@ export const NexonUserView: React.FC = () => {
   const [rankers, setRankers] = useState<RankerInfo[]>([]);
   const [rankerIsDemo, setRankerIsDemo] = useState(false);
 
-  // 5. Metadata State
-  const [metaType, setMetaType] = useState<'matchtype' | 'seasonid' | 'spposition' | 'division' | 'spid'>('matchtype');
-  const [metaLoading, setMetaLoading] = useState(false);
-  const [metaData, setMetaData] = useState<any[]>([]);
-
-  // 6. Image Assets State
-  const [spIdInput, setSpIdInput] = useState('250102143');
-  const [seasonIdInput, setSeasonIdInput] = useState('101');
-  const [imageUrls, setImageUrls] = useState<{
-    portrait: string;
-    action: string;
-    seasonBadge: string;
-  }>({
-    portrait: 'https://fconline.gcdn.nexon.com/live/externalAssets/common/players/p250102143.png',
-    action: 'https://fconline.gcdn.nexon.com/live/externalAssets/common/playersAction/p250102143.png',
-    seasonBadge: 'https://fconline.gcdn.nexon.com/live/externalAssets/common/season/101.png',
-  });
-
-  // 7. Trade History State
+  // 5. Trade History State
   const [tradeType, setTradeType] = useState<'buy' | 'sell'>('buy');
   const [tradeLoading, setTradeLoading] = useState(false);
   const [trades, setTrades] = useState<TradeItem[]>([]);
@@ -900,52 +890,18 @@ export const NexonUserView: React.FC = () => {
     }
   };
 
-  // 4. Fetch Metadata
-  const fetchMetadata = async (type: typeof metaType) => {
-    setMetaLoading(true);
-
-    try {
-      const res = await fetch(`/api/nexon/metadata?type=${type}`);
-      const data = await res.json();
-
-      if (res.ok && data.data) {
-        setMetaData(Array.isArray(data.data) ? data.data : [data.data]);
-      }
-    } catch (err) {
-      console.error('Metadata fetch error', err);
-    } finally {
-      setMetaLoading(false);
-    }
-  };
-
-  // 5. Generate Image Asset URLs
-  const handleUpdateImageUrls = () => {
-    const spId = spIdInput.trim() || '250102143';
-    const season = seasonIdInput.trim() || '101';
-
-    setImageUrls({
-      portrait: `https://fconline.gcdn.nexon.com/live/externalAssets/common/players/p${spId}.png`,
-      action: `https://fconline.gcdn.nexon.com/live/externalAssets/common/playersAction/p${spId}.png`,
-      seasonBadge: `https://fconline.gcdn.nexon.com/live/externalAssets/common/season/${season}.png`,
-    });
-    showToast('Updated CDN asset URLs!');
-  };
-
   useEffect(() => {
     fetchAccount(nickname);
     fetchMatchDetail('m_001');
     fetchRankers();
-    fetchMetadata('matchtype');
     fetchTradeHistory('buy');
   }, []);
 
   useEffect(() => {
-    if (activeSubTab === 'metadata') {
-      fetchMetadata(metaType);
-    } else if (activeSubTab === 'trade') {
+    if (activeSubTab === 'trade') {
       fetchTradeHistory(tradeType);
     }
-  }, [metaType, tradeType, activeSubTab]);
+  }, [tradeType, activeSubTab]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1006,19 +962,11 @@ export const NexonUserView: React.FC = () => {
         </div>
       )}
 
-      {/* Top Main Title & API Key Status Banner */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="font-data text-[10px] text-[#B9F600] uppercase tracking-widest font-bold">
-              OFFICIAL NEXON OPEN API
-            </span>
-            <span className="bg-[#B9F600]/15 text-[#B9F600] border border-[#B9F600]/40 font-data text-[9px] px-1.5 py-0.2 rounded font-bold">
-              FC ONLINE v1.0
-            </span>
-          </div>
-          <h1 className="text-xl font-black text-white font-headline">NEXON FC Online Integration Hub</h1>
-        </div>
+      {/* API Key Status Banner */}
+      <div className="flex justify-between items-center gap-3">
+        <span className="font-data text-[10px] text-[#B9F600] uppercase tracking-widest font-bold">
+          OFFICIAL NEXON OPEN API
+        </span>
 
         <button
           onClick={() => setShowKeyModal(true)}
@@ -1031,31 +979,6 @@ export const NexonUserView: React.FC = () => {
           <span className="material-symbols-outlined text-[16px]">key</span>
           <span>{customKey ? 'Key Active (API Key)' : 'Set API Key'}</span>
         </button>
-      </div>
-
-      {/* Core Feature Navigation Subtabs */}
-      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar bg-[#161A1E] p-2 rounded-2xl border border-[#2D333B] shadow-inner scroll-smooth">
-        {[
-          { id: 'account', label: '1. 계정 정보', icon: 'account_box' },
-          { id: 'match', label: '2. 매치 정보', icon: 'sports_score' },
-          { id: 'ranker', label: '3. 랭커 정보', icon: 'leaderboard' },
-          { id: 'metadata', label: '4. 메타데이터', icon: 'schema' },
-          { id: 'images', label: '5. 이미지 정보', icon: 'image' },
-          { id: 'trade', label: '6. 이적시장 거래 내역', icon: 'receipt_long' },
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveSubTab(tab.id as NexonTab)}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-data text-xs font-bold whitespace-nowrap transition-all active:scale-95 ${
-              activeSubTab === tab.id
-                ? 'bg-[#B9F600] text-[#141F00] shadow-[0_0_12px_rgba(185,246,0,0.3)]'
-                : 'text-[#C3CAAC] hover:text-white hover:bg-[#232B34] border border-transparent'
-            }`}
-          >
-            <span className="material-symbols-outlined text-[18px]">{tab.icon}</span>
-            <span>{tab.label}</span>
-          </button>
-        ))}
       </div>
 
       {/* ------------------------------------------------------------------ */}
@@ -1857,226 +1780,7 @@ export const NexonUserView: React.FC = () => {
       )}
 
       {/* ------------------------------------------------------------------ */}
-      {/* 4. 메타데이터 (Metadata Info) Tab */}
-      {/* ------------------------------------------------------------------ */}
-      {activeSubTab === 'metadata' && (
-        <div className="space-y-4 animate-in fade-in">
-          <div className="bg-[#161A1E] border border-[#2D333B] p-4 rounded-2xl space-y-3">
-            <div>
-              <h2 className="text-sm font-bold text-white">FC Online Static Metadata JSON APIs</h2>
-              <p className="text-xs text-[#C3CAAC]">Fetch reference JSON codes for match types, seasons, positions, and SPIDs</p>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              {[
-                { id: 'matchtype', label: 'matchtype.json' },
-                { id: 'seasonid', label: 'seasonid.json' },
-                { id: 'spposition', label: 'spposition.json' },
-                { id: 'division', label: 'division.json' },
-                { id: 'spid', label: 'spid.json (Sample)' },
-              ].map((m) => (
-                <button
-                  key={m.id}
-                  onClick={() => setMetaType(m.id as any)}
-                  className={`px-3 py-1.5 rounded-xl font-data text-xs font-bold border transition-all ${
-                    metaType === m.id
-                      ? 'bg-[#B9F600] text-[#141F00] border-[#B9F600]'
-                      : 'bg-[#232B34] text-[#C3CAAC] border-[#2D333B] hover:text-white'
-                  }`}
-                >
-                  {m.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {metaLoading && (
-            <div className="bg-[#161A1E] border border-[#2D333B] rounded-2xl p-8 text-center text-xs text-[#C3CAAC]">
-              Loading static metadata JSON...
-            </div>
-          )}
-
-          {!metaLoading && metaData.length > 0 && (
-            <div className="bg-[#161A1E] border border-[#2D333B] rounded-2xl p-4 space-y-3">
-              <div className="flex justify-between items-center border-b border-[#2D333B] pb-2">
-                <span className="font-data text-xs text-[#B9F600] font-bold uppercase">
-                  Metadata Type: {metaType}.json ({metaData.length} entries)
-                </span>
-                <button
-                  onClick={() => copyToClipboard(JSON.stringify(metaData, null, 2))}
-                  className="px-2.5 py-1 bg-[#232B34] text-xs font-data text-white rounded-lg flex items-center gap-1"
-                >
-                  <span className="material-symbols-outlined text-xs">content_copy</span>
-                  <span>Copy JSON</span>
-                </button>
-              </div>
-
-              <div className="max-h-96 overflow-y-auto font-mono text-[11px] bg-[#182029] p-3 rounded-xl border border-[#2D333B] text-[#00FF87] space-y-1">
-                <pre>{JSON.stringify(metaData, null, 2)}</pre>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ------------------------------------------------------------------ */}
-      {/* 5. 이미지 정보 (Image CDN Info) Tab */}
-      {/* ------------------------------------------------------------------ */}
-      {activeSubTab === 'images' && (
-        <div className="space-y-4 animate-in fade-in">
-          <div className="bg-[#161A1E] border border-[#2D333B] p-4 rounded-2xl space-y-3">
-            <div>
-              <h2 className="text-sm font-bold text-white">NEXON FC Online Official Image Asset CDN</h2>
-              <p className="text-xs text-[#C3CAAC]">
-                Construct live player portraits, action shots, and season badge image links
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-[10px] font-data text-[#C3CAAC] uppercase mb-1">
-                  Player SPID (e.g. 250102143)
-                </label>
-                <input
-                  type="text"
-                  value={spIdInput}
-                  onChange={(e) => setSpIdInput(e.target.value)}
-                  placeholder="250102143"
-                  className="w-full bg-[#182029] border border-[#2D333B] rounded-xl p-2.5 text-xs text-white font-mono focus:outline-none focus:ring-1 focus:ring-[#B9F600]"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-data text-[#C3CAAC] uppercase mb-1">
-                  Season ID (e.g. 101)
-                </label>
-                <input
-                  type="text"
-                  value={seasonIdInput}
-                  onChange={(e) => setSeasonIdInput(e.target.value)}
-                  placeholder="101"
-                  className="w-full bg-[#182029] border border-[#2D333B] rounded-xl p-2.5 text-xs text-white font-mono focus:outline-none focus:ring-1 focus:ring-[#B9F600]"
-                />
-              </div>
-            </div>
-
-            <button
-              onClick={handleUpdateImageUrls}
-              className="w-full bg-[#B9F600] text-[#141F00] font-data font-bold text-xs py-2.5 rounded-xl hover:brightness-105"
-            >
-              Generate CDN Image Links
-            </button>
-          </div>
-
-          {/* Preset Buttons */}
-          <div className="flex flex-wrap gap-2">
-            <span className="text-xs font-data text-[#C3CAAC] self-center">Presets:</span>
-            {[
-              { name: 'Kylian Mbappé', spId: '250102143', season: '101' },
-              { name: 'Son Heung-min', spId: '240000001', season: '101' },
-              { name: 'Jude Bellingham', spId: '101000001', season: '101' },
-              { name: 'Erling Haaland', spId: '250102144', season: '101' },
-            ].map((preset) => (
-              <button
-                key={preset.spId}
-                onClick={() => {
-                  setSpIdInput(preset.spId);
-                  setSeasonIdInput(preset.season);
-                  setImageUrls({
-                    portrait: `https://fconline.gcdn.nexon.com/live/externalAssets/common/players/p${preset.spId}.png`,
-                    action: `https://fconline.gcdn.nexon.com/live/externalAssets/common/playersAction/p${preset.spId}.png`,
-                    seasonBadge: `https://fconline.gcdn.nexon.com/live/externalAssets/common/season/${preset.season}.png`,
-                  });
-                }}
-                className="px-3 py-1 bg-[#182029] hover:bg-[#232B34] text-xs font-data text-white rounded-lg border border-[#2D333B]"
-              >
-                {preset.name}
-              </button>
-            ))}
-          </div>
-
-          {/* Image Asset Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* 1. Player Portrait */}
-            <div className="bg-[#161A1E] border border-[#2D333B] p-4 rounded-2xl text-center space-y-3">
-              <span className="font-data text-[10px] text-[#B9F600] font-bold uppercase">
-                1. Player Portrait (상반신 이미지)
-              </span>
-              <div className="h-40 bg-[#182029] rounded-xl border border-[#2D333B] flex items-center justify-center overflow-hidden p-2">
-                <img
-                  src={imageUrls.portrait}
-                  alt="Player Portrait"
-                  className="max-h-full object-contain"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src =
-                      'https://fconline.gcdn.nexon.com/live/externalAssets/common/players/p250102143.png';
-                  }}
-                />
-              </div>
-              <button
-                onClick={() => copyToClipboard(imageUrls.portrait)}
-                className="w-full py-2 bg-[#232B34] hover:bg-[#2d3642] text-xs font-data text-white rounded-xl flex items-center justify-center gap-1 border border-[#2D333B]"
-              >
-                <span className="material-symbols-outlined text-xs">content_copy</span>
-                <span>Copy Portrait URL</span>
-              </button>
-            </div>
-
-            {/* 2. Player Action Shot */}
-            <div className="bg-[#161A1E] border border-[#2D333B] p-4 rounded-2xl text-center space-y-3">
-              <span className="font-data text-[10px] text-[#B9F600] font-bold uppercase">
-                2. Action Shot (액션샷 이미지)
-              </span>
-              <div className="h-40 bg-[#182029] rounded-xl border border-[#2D333B] flex items-center justify-center overflow-hidden p-2">
-                <img
-                  src={imageUrls.action}
-                  alt="Player Action"
-                  className="max-h-full object-contain"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src =
-                      'https://fconline.gcdn.nexon.com/live/externalAssets/common/players/p250102143.png';
-                  }}
-                />
-              </div>
-              <button
-                onClick={() => copyToClipboard(imageUrls.action)}
-                className="w-full py-2 bg-[#232B34] hover:bg-[#2d3642] text-xs font-data text-white rounded-xl flex items-center justify-center gap-1 border border-[#2D333B]"
-              >
-                <span className="material-symbols-outlined text-xs">content_copy</span>
-                <span>Copy Action URL</span>
-              </button>
-            </div>
-
-            {/* 3. Season Badge */}
-            <div className="bg-[#161A1E] border border-[#2D333B] p-4 rounded-2xl text-center space-y-3">
-              <span className="font-data text-[10px] text-[#B9F600] font-bold uppercase">
-                3. Season Badge (시즌 클래스 로고)
-              </span>
-              <div className="h-40 bg-[#182029] rounded-xl border border-[#2D333B] flex items-center justify-center overflow-hidden p-2">
-                <img
-                  src={imageUrls.seasonBadge}
-                  alt="Season Badge"
-                  className="max-h-full object-contain"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src =
-                      'https://fconline.gcdn.nexon.com/live/externalAssets/common/season/101.png';
-                  }}
-                />
-              </div>
-              <button
-                onClick={() => copyToClipboard(imageUrls.seasonBadge)}
-                className="w-full py-2 bg-[#232B34] hover:bg-[#2d3642] text-xs font-data text-white rounded-xl flex items-center justify-center gap-1 border border-[#2D333B]"
-              >
-                <span className="material-symbols-outlined text-xs">content_copy</span>
-                <span>Copy Season URL</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ------------------------------------------------------------------ */}
-      {/* 6. 이적시장 거래 내역 (Trade History) Tab */}
+      {/* 4. 이적시장 거래 내역 (Trade History) Tab */}
       {/* ------------------------------------------------------------------ */}
       {activeSubTab === 'trade' && (
         <div className="space-y-4 animate-in fade-in">

@@ -1,14 +1,11 @@
 import React, { useState } from 'react';
-import { Player } from '../types';
 
 interface TopHeaderProps {
-  onSelectPlayer: (player: Player) => void;
-  players: Player[];
   title?: string;
   subtitle?: string;
 }
 
-export const TopHeader: React.FC<TopHeaderProps> = ({ onSelectPlayer, players, title = "FC LENS", subtitle }) => {
+export const TopHeader: React.FC<TopHeaderProps> = ({ title = "FC LENS", subtitle }) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState([
     { id: '1', title: '24TOTY Season Launch', time: '10m ago', unread: true },

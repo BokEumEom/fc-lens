@@ -8,9 +8,9 @@ interface BottomNavProps {
 
 export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, setActiveTab }) => {
   const tabs: { id: TabType; label: string; icon: string }[] = [
-    { id: 'home', label: '홈', icon: 'home' },
-    { id: 'search', label: '선수 검색', icon: 'person_search' },
-    { id: 'squad', label: '스쿼드', icon: 'analytics' },
+    { id: 'owner', label: '구단주', icon: 'account_box' },
+    { id: 'match', label: '매치', icon: 'sports_score' },
+    { id: 'trade', label: '이적', icon: 'receipt_long' },
     { id: 'ranker', label: '랭킹', icon: 'leaderboard' },
   ];
 

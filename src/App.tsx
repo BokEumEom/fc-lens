@@ -1,166 +1,58 @@
 import React, { useState } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
-import { Player, TabType } from './types';
-import { PLAYERS } from './data/mockData';
+import { TabType } from './types';
 import { TopHeader } from './components/TopHeader';
 import { BottomNav } from './components/BottomNav';
-import { HomeView } from './components/HomeView';
-import { PlayerSearchView } from './components/PlayerSearchView';
-import { PlayerDetailView } from './components/PlayerDetailView';
-import { SquadAnalysisView } from './components/SquadAnalysisView';
-import { RankerView } from './components/RankerView';
-import { NexonUserView } from './components/NexonUserView';
+import { NexonUserView, NexonTab } from './components/NexonUserView';
+
+/** 하단 탭 → NexonUserView 내부 섹션 */
+const TAB_TO_SECTION: Record<TabType, NexonTab> = {
+  owner: 'account',
+  match: 'match',
+  trade: 'trade',
+  ranker: 'ranker',
+};
+
+/** NexonUserView 내부 이동 → 하단 탭 (역방향) */
+const SECTION_TO_TAB: Record<NexonTab, TabType> = {
+  account: 'owner',
+  match: 'match',
+  trade: 'trade',
+  ranker: 'ranker',
+};
+
+const TAB_SUBTITLES: Record<TabType, string> = {
+  owner: 'OWNER ANALYSIS',
+  match: 'MATCH DETAIL',
+  trade: 'TRANSFER HISTORY',
+  ranker: 'META RANKINGS',
+};
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<TabType>('home');
-  const [previousTab, setPreviousTab] = useState<TabType>('home');
-  const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
-  const [seasonFilter, setSeasonFilter] = useState<string>('');
+  const [activeTab, setActiveTab] = useState<TabType>('owner');
 
-  // Favorites state persisted in localStorage
-  const [favoriteIds, setFavoriteIds] = useState<string[]>(() => {
-    try {
-      const saved = localStorage.getItem('fclens_favorite_players');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
-
-  const handleToggleFavorite = (playerId: string) => {
-    setFavoriteIds((prev) => {
-      const updated = prev.includes(playerId)
-        ? prev.filter((id) => id !== playerId)
-        : [...prev, playerId];
-      try {
-        localStorage.setItem('fclens_favorite_players', JSON.stringify(updated));
-      } catch (e) {
-        console.error('Failed to save favorites to localStorage', e);
-      }
-      return updated;
-    });
-  };
-
-  const handleSelectPlayer = (player: Player) => {
-    setSelectedPlayer(player);
-    if (activeTab !== 'detail') {
-      setPreviousTab(activeTab);
-    }
-    setActiveTab('detail');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const handleBackFromDetail = () => {
-    setActiveTab(previousTab);
-    setSelectedPlayer(null);
-  };
-
-  const handleNavigateTab = (tab: TabType) => {
+  const navigateTab = (tab: TabType) => {
     setActiveTab(tab);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleFilterSeason = (seasonId: string) => {
-    setSeasonFilter(seasonId);
-    setActiveTab('search');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const getSubTitle = () => {
-    switch (activeTab) {
-      case 'home':
-        return 'ANALYTICAL EDGE';
-      case 'search':
-        return 'PLAYER SEARCH';
-      case 'squad':
-        return 'SQUAD ANALYSIS';
-      case 'ranker':
-        return 'META RANKINGS';
-      case 'detail':
-        return 'PLAYER PROFILE';
-      default:
-        return 'FC ONLINE';
-    }
-  };
-
   return (
     <div className="min-h-screen bg-[#0B0E11] text-[#DBE3F0] font-sans antialiased max-w-md mx-auto sm:max-w-xl md:max-w-4xl relative border-x border-[#2D333B]/40 shadow-2xl">
-      {/* Top Navigation Header */}
-      <TopHeader
-        title="FC LENS"
-        subtitle={getSubTitle()}
-        players={PLAYERS}
-        onSelectPlayer={handleSelectPlayer}
-      />
+      <TopHeader title="FC LENS" subtitle={TAB_SUBTITLES[activeTab]} />
 
-      {/* Main Content Area */}
+      {/*
+        NexonUserView는 탭을 바꿔도 언마운트하지 않는다.
+        재마운트하면 조회한 구단주/매치/이적 데이터가 초기화되고 API를 다시 호출하게 된다.
+        (Phase 3c에서 OwnerView/MatchView/TradeView로 분리하고 상태를 App으로 끌어올린 뒤
+         화면 전환 애니메이션을 복원한다.)
+      */}
       <main className="min-h-[calc(100vh-120px)] pb-28 sm:pb-24">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.22, ease: [0.25, 0.1, 0.25, 1] }}
-          >
-            {activeTab === 'home' && (
-              <HomeView
-                players={PLAYERS}
-                favoriteIds={favoriteIds}
-                onToggleFavorite={handleToggleFavorite}
-                onSelectPlayer={handleSelectPlayer}
-                onNavigateTab={handleNavigateTab}
-                onFilterSeason={handleFilterSeason}
-              />
-            )}
-
-            {activeTab === 'search' && (
-              <PlayerSearchView
-                players={PLAYERS}
-                favoriteIds={favoriteIds}
-                onToggleFavorite={handleToggleFavorite}
-                onSelectPlayer={handleSelectPlayer}
-                initialSeason={seasonFilter}
-              />
-            )}
-
-            {activeTab === 'squad' && (
-              <SquadAnalysisView
-                allPlayers={PLAYERS}
-                onSelectPlayerDetail={handleSelectPlayer}
-              />
-            )}
-
-            {activeTab === 'ranker' && (
-              <RankerView
-                players={PLAYERS}
-                onSelectPlayer={handleSelectPlayer}
-              />
-            )}
-
-            {activeTab === 'detail' && selectedPlayer && (
-              <PlayerDetailView
-                player={selectedPlayer}
-                allPlayers={PLAYERS}
-                favoriteIds={favoriteIds}
-                onToggleFavorite={handleToggleFavorite}
-                onBack={handleBackFromDetail}
-                onSelectPlayer={handleSelectPlayer}
-              />
-            )}
-          </motion.div>
-        </AnimatePresence>
+        <NexonUserView
+          activeSubTab={TAB_TO_SECTION[activeTab]}
+          onChangeSubTab={(section) => navigateTab(SECTION_TO_TAB[section])}
+        />
       </main>
 
-      {/* Bottom Floating Navigation */}
-      <BottomNav
-        activeTab={activeTab === 'detail' ? previousTab : activeTab}
-        setActiveTab={(tab) => {
-          setSeasonFilter('');
-          setActiveTab(tab);
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        }}
-      />
+      <BottomNav activeTab={activeTab} setActiveTab={navigateTab} />
     </div>
   );
 }
