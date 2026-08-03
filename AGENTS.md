@@ -29,7 +29,7 @@ FC Lens 레포에서 작업하는 AI 에이전트(및 기여자)를 위한 안�
 | 프로덕션 빌드 | `npm run build` |
 | 프로덕션 실행 | `npm start` |
 
-- 환경변수는 `.env.example`를 복사해 `.env` 생성(`NEXON_OPENAPI_KEY`, `GEMINI_API_KEY`).
+- 환경변수는 `.env.example`를 복사해 `.env` 생성(`NEXON_OPENAPI_KEY`).
 - **넥슨 키가 없으면 앱은 동작하지 않는다.** 목 데이터 폴백은 없다(Phase 3a에서 전부 제거).
 
 ## 3. 코딩 규칙 (Conventions)
@@ -43,7 +43,7 @@ FC Lens 레포에서 작업하는 AI 에이전트(및 기여자)를 위한 안�
   `src/lib/api/types.ts`를 유일한 타입 기준으로 삼는다. 컴포넌트에 로컬 DTO를 새로 만들지 않는다.
 - **불변성**: 상태·객체는 새로 생성하고 직접 변경(mutation)하지 않는다.
 - **파일 분리**: 컴포넌트는 200~400줄 유지. 커지면 하위 폴더(`owner/`, `match/`, `meta/`, `common/`)로 분할.
-- **API 키는 서버 전용**: 넥슨/Gemini 키는 서버 환경변수에서만 읽는다. 브라우저에 키를
+- **API 키는 서버 전용**: 넥슨 키는 서버 환경변수에서만 읽는다. 브라우저에 키를
   저장하거나(`localStorage`) 요청 헤더로 전달하는 경로를 다시 만들지 않는다 — XSS 유출 경로가 된다.
   외부 API 호출은 반드시 `/api/*`를 경유한다(넥슨 Open API는 CORS 미허용이라 직접 호출도 불가능).
 - **비동기 가드**: 훅의 `useEffect`에서 조회할 때는 `cancelled` 플래그로 경쟁 상태를 막는다.

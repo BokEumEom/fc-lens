@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { apiGet, apiPost } from './client';
+import { apiGet } from './client';
 
 function okResponse(body: unknown) {
   return { ok: true, status: 200, json: async () => body } as unknown as Response;
@@ -89,20 +89,4 @@ describe('api client', () => {
     });
   });
 
-  describe('apiPost', () => {
-    it('JSON 본문과 Content-Type을 함께 보낸다', async () => {
-      await apiPost('/ai-squad-assistant', { prompt: 'k' });
-
-      const [url, init] = lastCall();
-      expect(url).toBe('/api/ai-squad-assistant');
-      expect(init.method).toBe('POST');
-      expect(init.headers).toMatchObject({ 'Content-Type': 'application/json' });
-      expect(init.body).toBe(JSON.stringify({ prompt: 'k' }));
-    });
-
-    it('본문이 없으면 body를 생략한다', async () => {
-      await apiPost('/nexon/x');
-      expect(lastCall()[1].body).toBeUndefined();
-    });
-  });
 });

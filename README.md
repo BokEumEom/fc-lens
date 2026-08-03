@@ -55,7 +55,6 @@
 
 ```env
 NEXON_OPENAPI_KEY=your_nexon_openapi_key_here
-GEMINI_API_KEY=your_gemini_api_key_here
 ```
 
 > **넥슨 키는 필수입니다.** 목 데이터 폴백이 없어 키가 없으면 모든 조회가 실패합니다.
@@ -81,7 +80,7 @@ npm start        # 프로덕션 서버
 .
 ├── server/                     # 넥슨 API 프록시 (키·CORS 전담)
 │   ├── index.ts                # 진입점: dotenv → 라우터 → Vite/정적 → listen
-│   ├── routes/{nexon,ai}.ts    # /api/nexon/*, /api/ai-squad-assistant
+│   ├── routes/nexon.ts         # /api/nexon/*
 │   └── lib/
 │       ├── nexonClient.ts      # Base URL · env 키 해석 · fetch 헬퍼
 │       ├── divisions.ts        # 등급 코드 → 라벨

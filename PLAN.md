@@ -48,8 +48,7 @@ fc-lens/
 ├── server/               # 얇은 프록시 (키·CORS 전담)
 │   ├── index.ts          # startServer(): app 구성 + vite/static + listen
 │   ├── routes/
-│   │   ├── nexon.ts      # /api/nexon/*
-│   │   └── ai.ts         # /api/ai-squad-assistant
+│   │   └── nexon.ts      # /api/nexon/*
 │   └── lib/
 │       ├── nexonClient.ts # 넥슨 fetch 래퍼 + resolveApiKey(req,res)
 │       └── divisions.ts   # DIVISION_MAP

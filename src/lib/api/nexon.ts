@@ -1,6 +1,6 @@
 // 넥슨 API 엔드포인트별 타입 지정 함수.
 // 컴포넌트는 이 함수(또는 상위 hooks)를 통해서만 데이터를 조회한다.
-import { apiGet, apiPost } from "./client";
+import { apiGet } from "./client";
 import type {
   AccountResponse,
   UserMatchesResponse,
@@ -82,8 +82,4 @@ export function getImages(
   seasonid?: string | number
 ): Promise<ImagesResponse> {
   return apiGet<ImagesResponse>("/nexon/images", { spid, seasonid });
-}
-
-export function askAiAdvisor(prompt: string): Promise<{ advice: string }> {
-  return apiPost<{ advice: string }>("/ai-squad-assistant", { prompt });
 }

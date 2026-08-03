@@ -2,5 +2,5 @@
   "name": "FC Lens",
   "description": "Professional Grade Sports Analytics for FC Online",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": []
 }

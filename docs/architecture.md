@@ -33,7 +33,6 @@ FC Lens는 **단일 Express 서버가 프론트엔드(SPA)와 API 프록시를 �
 | 차트 | recharts | ^3.10.0 | 매치 승률/성과 차트 |
 | 아이콘 | lucide-react + Google Material Symbols | ^0.546.0 | Material Symbols는 CDN 폰트(`index.html`) |
 | 백엔드 | Express | ^4.21.2 | API 라우팅 + 정적 파일 서빙 |
-| AI SDK | @google/genai | ^2.4.0 | Gemini `gemini-2.5-flash` (⚠️ 현재 UI 연결 없음 — 4.5 참고) |
 | 환경변수 | dotenv | ^17.2.3 | `server/index.ts` 최상단에서 `import "dotenv/config"` |
 | 테스트 | Vitest + Testing Library + supertest | ^4 | `npm test`, 커버리지 임계치 80% |
 | 개발 실행 | tsx | ^4.21.0 | `server/index.ts` 직접 실행 |
@@ -66,8 +65,7 @@ fc-lens/
 ├── server/                   # 얇은 프록시 (키·CORS 전담)
 │   ├── index.ts              # startServer(): dotenv → 라우터 → vite/static → listen
 │   ├── routes/
-│   │   ├── nexon.ts          # /api/nexon/*
-│   │   └── ai.ts             # /api/ai-squad-assistant
+│   │   └── nexon.ts          # /api/nexon/*
 │   └── lib/
 │       ├── nexonClient.ts    # Base URL 상수 + resolveApiKey(req,res) + fetch 헬퍼
 │       ├── divisions.ts      # DIVISION_MAP (등급 코드 → 라벨)
@@ -148,7 +146,6 @@ fc-lens/
 | GET | `/api/nexon/images` | 선수/시즌 CDN 이미지 URL 조합 | (URL 생성만) |
 | GET | `/api/nexon/trade` | 이적 구매/판매 내역 + 선수명 조인 | Nexon `user/trade` |
 | GET | `/api/nexon/user-lookup` | `/account` 하위호환 별칭 | (내부 재라우팅) |
-| POST | `/api/ai-squad-assistant` | 스쿼드/전술 조언 생성 | Gemini `gemini-2.5-flash` |
 
 ### 4.2 프론트엔드 진입 — `src/main.tsx`, `src/App.tsx`
 
@@ -185,14 +182,7 @@ fc-lens/
 | 이적 | `TradeView` | 구매/판매 내역 (선수명·시즌·이미지 조인됨) |
 | 랭킹 | `MetaView` | 내 스쿼드 vs 랭커 평균 벤치마크 (4.6 참고) |
 
-### 4.5 AI 라우트 상태 (Observation)
-
-`POST /api/ai-squad-assistant`와 `lib/api/nexon.ts`의 `askAiAdvisor()`는 존재하지만
-**현재 이를 호출하는 화면이 없다.** (구 `RankerView`가 유일한 사용처였고 Phase 3a에서 삭제됨.)
-`GEMINI_API_KEY`가 없으면 고정 조언 문자열을 반환하므로 항상 200이다.
-→ 재사용할지 제거할지 결정 필요.
-
-### 4.6 랭커 벤치마크 설계 근거 (중요)
+### 4.5 랭커 벤치마크 설계 근거 (중요)
 
 `/fconline/v1/ranker-stats`는 이름과 달리 **랭커 순위표가 아니다.**
 
@@ -227,9 +217,8 @@ GET /fconline/v1/ranker-stats?matchtype=50&players=[{"id":<spid>,"po":<sppositio
       │  (같은 오리진 fetch: /api/*)
       ▼
 [Express server/index.ts]
-   ├─ /api/nexon/*  ──(헤더 x-nxopen-api-key 또는 env NEXON_OPENAPI_KEY)──▶ [넥슨 Open API]
+   ├─ /api/nexon/*  ──(env NEXON_OPENAPI_KEY)──▶ [넥슨 Open API]
    │      └─ server/lib/meta.ts 캐시로 선수명·포지션·시즌·매치타입 조인
-   ├─ /api/ai-squad-assistant ──(env GEMINI_API_KEY)──▶ [Google Gemini]
    └─ 그 외 경로 ── 개발: Vite 미들웨어 / 프로덕션: dist 정적 + SPA 폴백
 ```
 

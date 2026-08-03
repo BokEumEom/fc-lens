@@ -2,7 +2,7 @@
 
 리팩토링 진행 상태 추적 문서입니다. 관련: [PLAN.md](./PLAN.md) · [SPEC.md](./SPEC.md)
 
-- 최종 업데이트: **전 Phase 완료** (1 · 2 · 3a · 3b · 3c · 4 · 5)
+- 최종 업데이트: **전 Phase 완료** (1 · 2 · 3a · 3b · 3c · 4 · 5 · 6)
 - 기준 커밋(작업 시작): `054fbd5 refactor(api): improve NEXON API key validation`
 - 범례: ⬜ 대기 · 🔄 진행중 · ✅ 완료 · ⏭️ 보류
 
@@ -17,6 +17,7 @@
 | 3c | 랭킹 탭 재설계 (ranker-stats) | ✅ |
 | 4 | 문서/마무리 | ✅ |
 | 5 | 테스트 도입 & 기본값 정리 | ✅ |
+| 6 | 키 취급 정리 & AI 라우트 제거 | ✅ |
 
 ## 확정된 결정 (Phase 3)
 
@@ -142,11 +143,37 @@
 
 - `MatchHistoryList`가 에러 배너와 매치 목록을 동시에 렌더 (빈 상태만 `!error`로 막혀 있었음)
 
+## Phase 6 — 키 취급 정리 & AI 라우트 제거 ✅
+
+### 넥슨 키를 서버 전용으로
+
+기존에도 서버 env 키가 유출되는 구조는 아니었다(응답에 키를 담는 경로 없음,
+`/status`는 `configured` 불리언만 반환). 다만 사용자가 자기 키를 넣어 `localStorage`에
+저장하고 헤더로 보내는 BYOK 경로가 있었고, env가 설정된 상태에서는 공격면만 늘렸다.
+
+- [x] `resolveApiKey`가 env만 읽는다. 클라이언트가 헤더로 키를 보내도 무시
+- [x] `POST /api/nexon/verify-key` 삭제
+- [x] `client.ts`의 키 저장·헤더 주입 제거
+- [x] 삭제: `useApiKey`, `ApiKeyModal`, `verifyKey()`, App의 키 배너 버튼
+- [x] 실행 중 서버 응답과 프로덕션 번들을 실제 키 문자열로 grep해 노출 없음 확인
+
+**부수 발견 7** — `client.ts`가 모든 요청에 키 헤더를 붙여, 인증이 필요 없는
+`metadata`/`images`/`status`는 물론 **Gemini로 가는 `/ai-squad-assistant`에도
+넥슨 키가 실려 나가고 있었다.**
+
+### AI 라우트 제거
+
+호출하는 화면이 없어(구 `RankerView`가 유일한 사용처, Phase 3a에서 삭제됨) 제거했다.
+
+- [x] `server/routes/ai.ts` + 테스트 삭제, `server/index.ts`에서 마운트 해제
+- [x] `askAiAdvisor()` 삭제. POST 라우트가 하나도 남지 않아 `apiPost`와
+      `express.json()` 미들웨어도 함께 제거
+- [x] `@google/genai` 의존성 제거
+- [x] `.env` / `.env.example`에서 `GEMINI_API_KEY` 제거,
+      `metadata.json`의 `MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API` 해제
+
 ## 남은 과제 (Follow-ups)
 
-- `POST /api/ai-squad-assistant`와 `askAiAdvisor()`는 존재하나 **호출하는 화면이 없다**
-  (구 `RankerView`가 유일한 사용처였고 Phase 3a에서 삭제됨). 재사용할지 제거할지 결정 필요.
-  → 랭커 벤치마크 결과를 프롬프트로 넘겨 `MetaView`에 붙이는 방안이 자연스럽다.
 - `lib/api`의 `getStatus`/`getMetadata`/`getImages`는 미사용. 서버 라우트의 타입 지정
   클라이언트로서 유지 중.
 - **최근 N경기 누적 벤치마크** — 현재는 1경기 기준이라 랭커 표본이 작을 때 신뢰도가 낮다.
