@@ -2,7 +2,7 @@
 
 리팩토링 진행 상태 추적 문서입니다. 관련: [PLAN.md](./PLAN.md) · [SPEC.md](./SPEC.md)
 
-- 최종 업데이트: Phase 3a 완료, Phase 3b 대기
+- 최종 업데이트: Phase 3b 완료, Phase 3c(랭킹 재설계) 대기
 - 기준 커밋(작업 시작): `054fbd5 refactor(api): improve NEXON API key validation`
 - 범례: ⬜ 대기 · 🔄 진행중 · ✅ 완료 · ⏭️ 보류
 
@@ -13,7 +13,7 @@
 | 1 | 백엔드 구조 분리 (server/) | ✅ |
 | 2 | 프론트 API 레이어 추가 (lib/api, hooks) | ✅ |
 | 3a | 탭 재구성 & 목업 제거 | ✅ |
-| 3b | NexonUserView 분할 + hooks/lib 이전 | ⬜ |
+| 3b | NexonUserView 분할 + hooks/lib 이전 | ✅ |
 | 3c | 랭킹 탭 재설계 (ranker-stats) | ⬜ 설계 필요 |
 | 4 | 문서/마무리 | ⬜ |
 
@@ -59,14 +59,26 @@
 - [x] `tsc --noEmit` 통과 + `vite build` 통과
 - [x] 구단주/매치/이적 탭 실 API 응답 확인
 
-## Phase 3b — NexonUserView 분할
+## Phase 3b — NexonUserView 분할 ✅
 
-`NexonUserView` 2,047줄(개발용 섹션 삭제 후)이 4개 탭을 모두 담당 중.
+- [x] `OwnerView` / `MatchView` / `TradeView` / `MetaView`로 분리 (최대 파일 265줄)
+- [x] 인라인 `fetch` 8곳 → `useOwnerData` → `src/lib/api/*`로 이전
+- [x] 공유 상태(구단주·선택 매치·API 키)를 App/훅으로 끌어올리기
+- [x] `NexonUserView.tsx` 삭제 (1,990줄)
+- [x] 로컬 중복 타입 10종 제거 → `lib/api/types.ts` 일원화
 
-- [ ] `OwnerView` / `MatchView` / `TradeView`로 분리 (파일당 200~400줄)
-- [ ] 인라인 `fetch` 8곳 → `src/hooks/*` + `src/lib/api/*`로 이전 (Phase 2 산출물이 아직 미사용)
-- [ ] 공유 상태(구단주 검색 결과·API 키)를 App으로 끌어올리기
-- [ ] 화면 전환 애니메이션 복원 (현재 3a에서 재마운트 방지를 위해 제거된 상태)
+함께 처리한 것:
+
+- **`@types/react` 설치** — 미설치 상태에서는 `React.FC<...>`가 `any`가 되어
+  `tsc`가 JSX prop 오류를 **하나도** 잡지 못했다. 설치 즉시 이번 리팩토링의 누락 prop 1건 검출.
+- `match-detail` 응답 계약 수정 (아래 로그 참조) — 매치 탭이 렌더되지 않던 원인.
+- 이적 내역에 선수명·시즌·이미지 조인.
+- 매치타입 라벨을 넥슨 메타 기준으로 교정 (52는 볼타 라이브가 아니라 **감독모드**).
+- 서버 미지원 기능 제거: LIVE 시뮬레이션 토글, `isDemoData` 플래그.
+
+남은 항목:
+
+- [ ] 화면 전환 애니메이션 복원 (3a에서 재마운트 방지를 위해 제거된 상태)
 
 ## Phase 3c — 랭킹 탭 재설계
 
@@ -95,3 +107,6 @@
 - Phase 3a 완료: 4탭 재구성 + 목업 화면 7개 삭제(-4,892줄). `NexonUserView`가 앱 본체로 승격되어 앱이 처음으로 실 API 위에서 동작.
 - 부수 발견 1 — `dotenv`가 의존성에 있으나 호출된 적이 없어 `.env`가 로드되지 않았음(원본 `server.ts`부터의 기존 버그). `server/index.ts`에 `import "dotenv/config"` 추가 후 `/api/nexon/account` 실 데이터 확인.
 - 부수 발견 2 — `ranker-stats` 사용법 오해 확인. Phase 3c 항목 참조.
+- Phase 3b 완료: `NexonUserView`(1,990줄) → 16개 파일로 분해. 최대 파일 265줄, `App.tsx` 106줄.
+- 부수 발견 3 — `/api/nexon/match-detail`이 넥슨 원본(`matchInfo[]`)을 그대로 반환하는데 UI는 `teams[]`를 기대. `res.json()`이 `any`라 tsc가 못 잡았고 매치 탭이 사실상 빈 화면이었음. 서버에서 `teams[]`로 정규화하고 `server/lib/meta.ts`(spid/spposition/seasonid/matchtype 캐시)로 선수명·포지션·시즌을 조인해 해결.
+- 부수 발견 4 — `@types/react` 미설치로 `tsc` 게이트가 React prop 오류를 전혀 검출하지 못하고 있었음. 설치 완료. (Phase 4 검토 항목이었으나 3b 검증을 위해 선반영)
