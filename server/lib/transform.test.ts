@@ -114,7 +114,9 @@ describe('normalizeMatchDetail', () => {
     expect(player.season).toBe('26 TOTS (26 Team Of The Season)');
     expect(player.grade).toBe(5);
     expect(player.rating).toBe(8.3);
-    expect(player.image).toContain(String(SPID_KNOWN));
+    // 초상 URL은 spid가 아니라 시즌을 뗀 pid를 쓴다 (spid로 요청하면 403).
+    expect(player.image).toContain(`/players/p${SPID_KNOWN % 1_000_000}.png`);
+    expect(player.image).not.toContain(String(SPID_KNOWN));
     // ranker-stats 응답과 키가 일치해야 비교가 가능하다
     expect(player.stats).toEqual({
       shoot: 0,
@@ -231,7 +233,7 @@ describe('normalizeTrades', () => {
     expect(trades).toHaveLength(rawTrades.length);
     trades.forEach((t) => {
       expect(t.name).toBeTruthy();
-      expect(t.image).toContain(String(t.spid));
+      expect(t.image).toContain(`/players/p${t.spid % 1_000_000}.png`);
       expect(typeof t.value).toBe('number');
     });
   });
@@ -282,7 +284,7 @@ describe('normalizeRankerStats', () => {
       expect(s.spid).toBe(rawRankerStats[i].spid);
       expect(s.spPosition).toBe(rawRankerStats[i].spPosition);
       expect(s.status).toEqual(rawRankerStats[i].status);
-      expect(s.image).toContain(String(s.spid));
+      expect(s.image).toContain(`/players/p${s.spid % 1_000_000}.png`);
     });
   });
 

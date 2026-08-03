@@ -3,8 +3,13 @@ import type { TradeRecord } from '../lib/api/types';
 import type { TradeType } from '../hooks/useOwnerData';
 
 const BP_PER_EOK = 100_000_000;
+// 대체 이미지는 원격 URL을 쓰지 않는다 — CDN이 죽었거나 spid가 잘못돼
+// 원본이 실패한 상황이면 원격 대체본도 같이 실패한다. 인라인 SVG는 항상 뜬다.
 const FALLBACK_PLAYER_IMAGE =
-  'https://fconline.gcdn.nexon.com/live/externalAssets/common/players/p250102143.png';
+  'data:image/svg+xml;utf8,' +
+  encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><rect width="48" height="48" fill="#232B34"/><circle cx="24" cy="19" r="8" fill="#3A424C"/><path d="M8 46c0-9 7-15 16-15s16 6 16 15z" fill="#3A424C"/></svg>`
+  );
 
 interface TradeViewProps {
   trades: TradeRecord[];
@@ -115,7 +120,9 @@ export const TradeView: React.FC<TradeViewProps> = ({
                     alt={item.name}
                     className="w-12 h-12 rounded-xl object-cover bg-[#232B34] border border-[#2D333B]"
                     onError={(e) => {
-                      (e.target as HTMLImageElement).src = FALLBACK_PLAYER_IMAGE;
+                      // 대체본으로 이미 바꾼 뒤라면 다시 대입하지 않는다 (onError 재진입 방지).
+                      const img = e.target as HTMLImageElement;
+                      if (img.src !== FALLBACK_PLAYER_IMAGE) img.src = FALLBACK_PLAYER_IMAGE;
                     }}
                   />
                   {item.grade > 0 && (

@@ -4,7 +4,7 @@
 //   서버에서 조인해 필요한 필드만 응답에 포함시킨다.
 
 const META_BASE = "https://open.api.nexon.com/static/fconline/meta";
-const IMAGE_BASE = "https://fconline.gcdn.nexon.com/live/externalAssets/common";
+const IMAGE_BASE = "https://fco.dn.nexoncdn.co.kr/live/externalAssets/common";
 
 // spid는 (시즌 ID * 1_000_000 + 선수 ID) 형태로 구성된다.
 const SEASON_DIVISOR = 1_000_000;
@@ -112,8 +112,14 @@ export function getMatchTypeName(meta: MetaTables, matchtype: number): string {
   return meta.matchTypes.get(matchtype) ?? `매치타입 ${matchtype}`;
 }
 
+// 두 이미지 경로가 받는 식별자가 다르다 (실측 확인).
+//   players/p{pid}.png        → 200   players/p{spid}.png       → 403
+//   playersAction/p{spid}.png → 200   playersAction/p{pid}.png  → 200
+// 즉 기본 초상은 시즌을 뗀 pid만 받고, 액션샷은 둘 다 받는다.
+// 액션샷은 spid를 쓰면 시즌별 카드 아트가 나오므로 spid를 그대로 넘긴다.
 export function getPlayerImageUrl(spid: number): string {
-  return `${IMAGE_BASE}/players/p${spid}.png`;
+  const pid = spid % SEASON_DIVISOR;
+  return `${IMAGE_BASE}/players/p${pid}.png`;
 }
 
 export function getPlayerActionImageUrl(spid: number): string {

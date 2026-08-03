@@ -96,12 +96,21 @@ describe('meta 캐시', () => {
     expect(getSeasonName(meta, 111)).toBe('');
   });
 
-  it('이미지 URL은 spid 기반 CDN 경로를 만든다', async () => {
-    const { getPlayerImageUrl, getPlayerActionImageUrl } = await freshMeta();
+  // players/는 pid만, playersAction/은 spid를 받는다 (meta.ts 주석의 실측 근거 참고).
+  // 이 구분을 놓쳐 모든 선수 초상이 403이던 적이 있어 경로별로 따로 검증한다.
+  it('선수 초상 URL은 시즌을 뗀 pid로 만든다', async () => {
+    const { getPlayerImageUrl } = await freshMeta();
 
     expect(getPlayerImageUrl(SPID)).toBe(
-      `https://fconline.gcdn.nexon.com/live/externalAssets/common/players/p${SPID}.png`
+      'https://fco.dn.nexoncdn.co.kr/live/externalAssets/common/players/p200145.png'
     );
-    expect(getPlayerActionImageUrl(SPID)).toContain('playersAction');
+  });
+
+  it('액션샷 URL은 시즌을 포함한 spid로 만든다', async () => {
+    const { getPlayerActionImageUrl } = await freshMeta();
+
+    expect(getPlayerActionImageUrl(SPID)).toBe(
+      `https://fco.dn.nexoncdn.co.kr/live/externalAssets/common/playersAction/p${SPID}.png`
+    );
   });
 });

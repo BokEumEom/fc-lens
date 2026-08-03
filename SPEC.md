@@ -11,7 +11,7 @@ FC Lens는 이 명세 범위 안에서 기능을 구현합니다.
 | --- | --- |
 | REST Base URL | `https://open.api.nexon.com` |
 | 정적 메타 Base URL | `https://open.api.nexon.com/static` |
-| 이미지 Base URL | `https://fconline.gcdn.nexon.com` |
+| 이미지 Base URL | `https://fco.dn.nexoncdn.co.kr` |
 | 인증 헤더 | `x-nxopen-api-key: {API_KEY}` |
 
 > **인증**: User / Match / Ranker 엔드포인트는 API 키 헤더가 **필수**입니다.
@@ -71,12 +71,16 @@ FC Lens는 이 명세 범위 안에서 기능을 구현합니다.
 
 ## 5. Image — 이미지 정보 조회
 
-| Method | Endpoint | 설명 | 인증 |
+| Method | Endpoint | 설명 | 실측 |
 | --- | --- | --- | --- |
-| GET | `/live/externalAssets/common/playersAction/p{spid}.png` | 선수 고유 식별자(spid)로 선수 액션샷 이미지 조회 | — |
-| GET | `/live/externalAssets/common/playersAction/p{pid}.png` | 선수 식별자(pid)로 선수 액션샷 이미지 조회 | — |
-| GET | `/live/externalAssets/common/players/p{spid}.png` | 선수 고유 식별자(spid)로 선수 이미지 조회 | — |
-| GET | `/live/externalAssets/common/players/p{pid}.png` | 선수 식별자(pid)로 선수 이미지 조회 | — |
+| GET | `/live/externalAssets/common/playersAction/p{spid}.png` | 선수 액션샷 (시즌별 카드 아트) | ✅ 200 |
+| GET | `/live/externalAssets/common/playersAction/p{pid}.png` | 선수 액션샷 (시즌 무관) | ✅ 200 |
+| GET | `/live/externalAssets/common/players/p{spid}.png` | 선수 이미지 | ❌ **403** |
+| GET | `/live/externalAssets/common/players/p{pid}.png` | 선수 이미지 | ✅ 200 |
+
+> ⚠️ 공식 문서는 `players/`가 spid를 받는다고 적고 있으나 **실제로는 403**입니다.
+> 초상 이미지는 반드시 시즌을 뗀 `pid = spid % 1_000_000`으로 요청해야 합니다.
+> 액션샷만 두 형태를 모두 받습니다. `server/lib/meta.ts`의 `getPlayerImageUrl` 참고.
 
 ---
 

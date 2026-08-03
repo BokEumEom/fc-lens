@@ -11,7 +11,7 @@ export const NEXON_BASE = "https://open.api.nexon.com";
 export const NEXON_FCONLINE = `${NEXON_BASE}/fconline/v1`;
 export const NEXON_META = `${NEXON_BASE}/static/fconline/meta`;
 export const NEXON_IMAGE_BASE =
-  "https://fconline.gcdn.nexon.com/live/externalAssets/common";
+  "https://fco.dn.nexoncdn.co.kr/live/externalAssets/common";
 
 const PLACEHOLDER_KEY = "test_nxapi_key_here";
 

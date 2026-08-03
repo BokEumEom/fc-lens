@@ -227,7 +227,9 @@ describe('nexonRouter', () => {
       expect(res.status).toBe(200);
       expect(res.body.totalCount).toBe(rawTrades.length);
       expect(res.body.trades[0].name).toBeTruthy();
-      expect(res.body.trades[0].image).toContain(String(res.body.trades[0].spid));
+      expect(res.body.trades[0].image).toContain(
+        `/players/p${res.body.trades[0].spid % 1_000_000}.png`
+      );
     });
   });
 
