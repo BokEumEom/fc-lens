@@ -23,6 +23,9 @@ FC Lens 레포에서 작업하는 AI 에이전트(및 기여자)를 위한 안�
 |------|------|
 | 개발 서버 (포트 3000) | `npm run dev` |
 | 타입 체크 | `npm run lint` (= `tsc --noEmit`) |
+| 테스트 | `npm test` (= `vitest run`) |
+| 테스트 워치 | `npm run test:watch` |
+| 커버리지 (임계치 검사 포함) | `npm run test:coverage` |
 | 프로덕션 빌드 | `npm run build` |
 | 프로덕션 실행 | `npm start` |
 
@@ -46,7 +49,27 @@ FC Lens 레포에서 작업하는 AI 에이전트(및 기여자)를 위한 안�
 - **비동기 가드**: 훅의 `useEffect`에서 조회할 때는 `cancelled` 플래그로 경쟁 상태를 막는다.
 - 작업 완료 전 `npm run lint`로 타입 오류가 없는지 확인한다.
 
-## 3.1 타입 게이트 주의 (중요)
+## 3.1 테스트 (Vitest)
+
+작업 완료 전 `npm test`가 그린이어야 한다. 커버리지 임계치(statements/lines 80%,
+branches 75%)는 `vitest.config.ts`에 박혀 있어 미달 시 `test:coverage`가 실패한다.
+
+**어디를 우선 테스트하나** — 이 프로젝트에서 실제로 버그가 났던 곳은 전부
+"서버 응답 ↔ 클라이언트 기대"의 계약 불일치였다. 따라서 우선순위는:
+
+1. `server/lib/transform.ts` — 넥슨 원본 → 뷰 모델 변환. 실제 응답 픽스처로 검증한다.
+2. `server/routes/*` — 파라미터 검증, 에러 상태 코드, 메타 조인 (supertest + `fetch` stub).
+3. `src/hooks/*` — 재조회 조건과 `cancelled` 가드.
+4. 컴포넌트는 **로직이 있는 것만** (포맷팅·필터·집계). 순수 레이아웃은 대상이 아니다.
+
+**픽스처**: `server/lib/__fixtures__/`에 실제 넥슨 응답을 저장해 둔다.
+새 엔드포인트를 다룰 때는 실 응답을 한 번 받아 픽스처로 남기고 그것으로 검증한다.
+스키마가 바뀌면 픽스처를 갱신하고, 그때 깨지는 테스트가 곧 영향 범위다.
+
+**네트워크 금지**: 테스트는 실제 넥슨 API를 호출하지 않는다. `vi.stubGlobal('fetch', ...)`로
+막는다. `server/lib/meta.ts`는 모듈 수준 캐시를 쓰므로 `vi.resetModules()` 후 재import한다.
+
+## 3.2 타입 게이트 주의 (중요)
 
 `@types/react`가 설치되어 있어야 `tsc`가 JSX prop 오류를 검출한다.
 미설치 상태에서는 `React.FC<...>`가 `any`로 취급되어 **prop 누락·타입 불일치가 전혀 잡히지 않는다.**
@@ -83,3 +106,4 @@ FC Lens 레포에서 작업하는 AI 에이전트(및 기여자)를 위한 안�
 - [ ] `docs/architecture.md`를 읽고 관련 모듈의 역할·데이터 흐름을 파악했는가?
 - [ ] 변경이 위 4장의 "문서 최신화 규칙"에 해당하는가? → 해당하면 문서도 함께 수정
 - [ ] `npm run lint` 통과했는가?
+- [ ] `npm test` 통과했는가? 응답 스키마를 바꿨다면 픽스처와 테스트도 함께 갱신했는가?

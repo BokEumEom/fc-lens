@@ -30,7 +30,7 @@ interface MatchTypeMeta {
   desc: string;
 }
 
-interface MetaTables {
+export interface MetaTables {
   playerNames: ReadonlyMap<number, string>;
   positions: ReadonlyMap<number, string>;
   seasons: ReadonlyMap<number, SeasonMeta>;

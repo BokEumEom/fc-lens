@@ -2,7 +2,7 @@
 
 리팩토링 진행 상태 추적 문서입니다. 관련: [PLAN.md](./PLAN.md) · [SPEC.md](./SPEC.md)
 
-- 최종 업데이트: **전 Phase 완료** (1 · 2 · 3a · 3b · 3c · 4)
+- 최종 업데이트: **전 Phase 완료** (1 · 2 · 3a · 3b · 3c · 4 · 5)
 - 기준 커밋(작업 시작): `054fbd5 refactor(api): improve NEXON API key validation`
 - 범례: ⬜ 대기 · 🔄 진행중 · ✅ 완료 · ⏭️ 보류
 
@@ -16,6 +16,7 @@
 | 3b | NexonUserView 분할 + hooks/lib 이전 | ✅ |
 | 3c | 랭킹 탭 재설계 (ranker-stats) | ✅ |
 | 4 | 문서/마무리 | ✅ |
+| 5 | 테스트 도입 & 기본값 정리 | ✅ |
 
 ## 확정된 결정 (Phase 3)
 
@@ -118,11 +119,37 @@
 - 부수 발견 6 — 넥슨 `averageRating`이 미출전 선수의 0점까지 포함해 실제보다 크게 낮았음(실측 6.9 → 원본 4.3). 출전 선수 기준으로 직접 계산.
 - Phase 4 완료: 문서 3종 갱신 + 화면 전환 애니메이션 복원.
 
+## Phase 5 — 테스트 도입 & 기본값 정리 ✅
+
+### 기본 닉네임 하드코딩 제거
+
+- [x] `src/lib/storage.ts` 신규 — 마지막 조회 구단주를 `fclens_last_owner`에 저장
+- [x] `useOwnerData`가 저장된 구단주로 시작. 없으면 빈 값 → `OwnerView`가 검색 안내를 표시
+- [x] 서버 `/account`도 `nickname` 필수로 변경 (기본값 `두치와뿌꾸` 대체 제거)
+
+### 테스트 (Vitest + Testing Library + supertest)
+
+- [x] `server/lib/transform.ts` 추출 — 라우트에 인라인이던 변환 로직을 순수 함수로 분리
+      (`nexon.ts` 553 → 465줄). 네트워크 의존이 없어 픽스처로 계약 검증 가능
+- [x] `server/lib/__fixtures__/` — 실제 넥슨 응답 저장 (match-detail / trade / ranker-stats)
+- [x] **테스트 23파일 202개**, 커버리지 statements 84.7% / lines 87.3%
+- [x] `vitest.config.ts`에 임계치 고정 (statements·lines 80%, branches 75%, functions 80%)
+
+계층별 커버리지: `server/lib` 97% · `server/routes` 86% · `src/components` 96% ·
+`src/hooks` 89% · `src/lib/api` 85%
+
+### 테스트가 잡아낸 것
+
+- `MatchHistoryList`가 에러 배너와 매치 목록을 동시에 렌더 (빈 상태만 `!error`로 막혀 있었음)
+
 ## 남은 과제 (Follow-ups)
 
 - `POST /api/ai-squad-assistant`와 `askAiAdvisor()`는 존재하나 **호출하는 화면이 없다**
   (구 `RankerView`가 유일한 사용처였고 Phase 3a에서 삭제됨). 재사용할지 제거할지 결정 필요.
-- `lib/api`의 `getStatus`/`getMetadata`/`getImages`도 현재 미사용. 서버 라우트의 타입 지정
+  → 랭커 벤치마크 결과를 프롬프트로 넘겨 `MetaView`에 붙이는 방안이 자연스럽다.
+- `lib/api`의 `getStatus`/`getMetadata`/`getImages`는 미사용. 서버 라우트의 타입 지정
   클라이언트로서 유지 중.
-- 테스트 프레임워크 없음 (`package.json`에 테스트 스크립트/의존성 부재).
+- **최근 N경기 누적 벤치마크** — 현재는 1경기 기준이라 랭커 표본이 작을 때 신뢰도가 낮다.
+  최근 10경기 스쿼드를 합쳐 누적 실적으로 비교하면 분석 가치가 크게 올라간다.
 - 클라이언트 라우터 미사용 — 탭 전환 시 URL이 변하지 않아 딥링크/뒤로가기 불가.
+- E2E 테스트 없음. `server/index.ts`(부트스트랩)와 `MatchWinRateChart`는 커버리지 제외 수준.

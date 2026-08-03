@@ -35,6 +35,7 @@ FC Lens는 **단일 Express 서버가 프론트엔드(SPA)와 API 프록시를 �
 | 백엔드 | Express | ^4.21.2 | API 라우팅 + 정적 파일 서빙 |
 | AI SDK | @google/genai | ^2.4.0 | Gemini `gemini-2.5-flash` (⚠️ 현재 UI 연결 없음 — 4.5 참고) |
 | 환경변수 | dotenv | ^17.2.3 | `server/index.ts` 최상단에서 `import "dotenv/config"` |
+| 테스트 | Vitest + Testing Library + supertest | ^4 | `npm test`, 커버리지 임계치 80% |
 | 개발 실행 | tsx | ^4.21.0 | `server/index.ts` 직접 실행 |
 | 프로덕션 번들 | esbuild | ^0.25.0 | `server/index.ts` → `dist/server.cjs` (CJS) |
 
@@ -46,6 +47,8 @@ FC Lens는 **단일 Express 서버가 프론트엔드(SPA)와 API 프록시를 �
 | `build` | `vite build` + `esbuild server/index.ts …` | 프론트 정적 빌드 + 서버 CJS 번들(`dist/server.cjs`) |
 | `start` | `node dist/server.cjs` | 프로덕션 서버 (정적 `dist` 서빙) |
 | `lint` | `tsc --noEmit` | 타입 체크 전용 |
+| `test` | `vitest run` | 단위·통합 테스트 |
+| `test:coverage` | `vitest run --coverage` | 커버리지 + 임계치 검사 |
 | `clean` | `rm -rf dist server.js` | 산출물 정리 |
 
 ---
@@ -68,7 +71,9 @@ fc-lens/
 │   └── lib/
 │       ├── nexonClient.ts    # Base URL 상수 + resolveApiKey(req,res) + fetch 헬퍼
 │       ├── divisions.ts      # DIVISION_MAP (등급 코드 → 라벨)
-│       └── meta.ts           # 정적 메타 캐시 (선수명/포지션/시즌/매치타입)
+│       ├── meta.ts           # 정적 메타 캐시 (선수명/포지션/시즌/매치타입)
+│       ├── transform.ts      # 넥슨 원본 → 뷰 모델 변환 (순수 함수, 테스트 대상)
+│       └── __fixtures__/     # 실제 넥슨 응답 픽스처
 │
 └── src/
     ├── main.tsx              # React 진입점
@@ -108,6 +113,11 @@ fc-lens/
 ### 4.1 백엔드 — `server/`
 
 **아키텍처 원칙: 서버는 얇은 프록시이되, "뷰 모델 정규화"는 서버가 담당한다.**
+
+라우트 핸들러는 인증·파라미터 검증·에러 응답만 하고, 원본 → 뷰 모델 변환은
+`server/lib/transform.ts`의 순수 함수가 담당한다. 네트워크·Express에 의존하지 않으므로
+저장된 실제 응답 픽스처로 계약을 검증할 수 있다.
+
 
 넥슨 원본 응답은 선수를 `spId` 숫자로만 표현하고 팀 스탯도 시도/성공 횟수로 흩어져 있다.
 이를 클라이언트가 조립하면 6MB대의 메타 파일을 브라우저로 내려보내야 하므로,
@@ -251,8 +261,10 @@ MetaView → useRankerStats(myTeam.squad, matchType)
 | 키 | 저장 위치 | 내용 |
 |----|-----------|------|
 | `fconline_nexon_api_key` | `lib/api/client.ts` | 사용자가 입력한 넥슨 API 키 |
+| `fclens_last_owner` | `lib/storage.ts` | 마지막으로 조회한 구단주 닉네임 |
 
 > Phase 3a에서 목업 화면이 제거되며 즐겨찾기·스쿼드 프리셋·선수 메모 키는 모두 사라졌다.
+> 저장된 구단주가 없으면 검색 안내 화면으로 시작한다(기본 닉네임을 하드코딩하지 않는다).
 
 ---
 
@@ -268,7 +280,8 @@ MetaView → useRankerStats(myTeam.squad, matchType)
 - **공식 API에 없는 데이터**: 선수 능력치(PAC/SHO/PAS/DRI/DEF/PHY, OVR), 시세(BP), 급여(salary).
   이를 전제로 한 기능은 구현하지 않는다.
 - **클라이언트 라우터 미사용**: 화면 전환은 `activeTab` 상태로만 처리하며 URL이 변하지 않는다.
-- **테스트 프레임워크 없음**: `package.json`에 테스트 스크립트/의존성이 없다.
+- **E2E 없음**: 단위·통합 테스트(Vitest)만 있고 브라우저 E2E는 없다.
+  `server/index.ts`(부트스트랩)와 차트 컴포넌트는 커버리지 대상에서 사실상 제외된다.
 - **rate limit**: 넥슨 API는 짧은 간격의 연속 호출에 `OPENAPI00007`을 반환한다.
   배치 조회 가능한 엔드포인트는 반드시 배치로 호출한다.
 

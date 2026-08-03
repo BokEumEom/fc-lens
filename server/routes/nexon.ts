@@ -9,22 +9,18 @@ import {
   nexonHeaders,
   fetchOuidByNickname,
 } from "../lib/nexonClient";
+import { ensureMetaLoaded, getMatchTypeName } from "../lib/meta";
 import {
-  ensureMetaLoaded,
-  getPlayerName,
-  getPositionName,
-  getSeasonName,
-  getMatchTypeName,
-  getPlayerImageUrl,
-} from "../lib/meta";
+  normalizeMatchDetail,
+  normalizeRankerStats,
+  normalizeTrades,
+  parsePlayersParam,
+  summarizeMatches,
+  toMatchSummary,
+} from "../lib/transform";
 
 export const nexonRouter = Router();
 
-// 시도/성공 횟수를 성공률(%)로 변환. 시도가 없으면 0.
-function toRate(success?: number, tries?: number): number {
-  if (!tries || tries <= 0) return 0;
-  return Math.round(((success ?? 0) / tries) * 100);
-}
 
 // ------------------------------------------------------------------
 // NEXON Open API 프록시 라우트 (참고: SPEC.md)
@@ -193,77 +189,17 @@ nexonRouter.get("/user-matches", async (req: Request, res: Response) => {
         if (!mDetailRes.ok) return null;
 
         const mData = await mDetailRes.json();
-        const myInfo = mData.matchInfo?.find((i: any) => i.ouid === ouid) || mData.matchInfo?.[0];
-        const oppInfo = mData.matchInfo?.find((i: any) => i.ouid !== ouid) || mData.matchInfo?.[1];
-
-        if (!myInfo) return null;
-
-        const rawResult = myInfo.matchDetail?.matchResult || "무";
-        const result = rawResult === "승" || rawResult === "WIN" ? "승" : rawResult === "패" || rawResult === "LOSE" ? "패" : "무";
-        const myGoals = myInfo.shoot?.goalTotal ?? 0;
-        const oppGoals = oppInfo?.shoot?.goalTotal ?? 0;
-
-        const myGoalScorers = (myInfo.player || [])
-          .filter((p: any) => p.status?.goal > 0)
-          .map((p: any) => ({ name: `선수 (ID: ${p.spId})`, goals: p.status.goal, rating: p.status.rating || 7.0 }));
-
-        const oppGoalScorers = (oppInfo?.player || [])
-          .filter((p: any) => p.status?.goal > 0)
-          .map((p: any) => ({ name: `상대선수 (ID: ${p.spId})`, goals: p.status.goal, rating: p.status.rating || 7.0 }));
-
-        const passSuccessRate = myInfo.pass?.passSuccessRate ?? (myInfo.pass?.passTry ? Math.round((myInfo.pass.passSuccess / myInfo.pass.passTry) * 100) : 85);
-        const tackleSuccessRate = myInfo.defence?.tackleSuccessRate ?? (myInfo.defence?.tackleTry ? Math.round((myInfo.defence.tackleSuccess / myInfo.defence.tackleTry) * 100) : 70);
-
-        return {
-          matchId: mId,
-          matchDate: mData.matchDate,
-          matchType: getMatchTypeName(meta, mData.matchType),
-          result,
-          score: `${myGoals} : ${oppGoals}`,
-          myGoals,
-          opponentGoals: oppGoals,
-          opponentNickname: oppInfo?.nickname || "상대 구단주",
-          possession: myInfo.matchDetail?.possession || 50,
-          shots: myInfo.shoot?.shootTotal || 0,
-          effectiveShots: myInfo.shoot?.effectiveShootTotal || 0,
-          passSuccessRate,
-          tackleSuccessRate,
-          myGoalScorers,
-          oppGoalScorers,
-          controller: myInfo.matchDetail?.controller || "pad",
-        };
+        return toMatchSummary(mData, ouid, meta);
       } catch {
         return null;
       }
     });
 
-    const matchResults = (await Promise.all(matchPromises)).filter(Boolean);
+    const matches = (await Promise.all(matchPromises)).filter(
+      (m): m is NonNullable<typeof m> => m !== null
+    );
 
-    let wins = 0, losses = 0, draws = 0, totalGoals = 0, totalPossession = 0;
-    matchResults.forEach((m: any) => {
-      if (m.result === "승") wins++;
-      else if (m.result === "패") losses++;
-      else draws++;
-      totalGoals += m.myGoals;
-      totalPossession += m.possession;
-    });
-
-    const totalMatches = matchResults.length;
-
-    res.json({
-      ouid,
-      matchType,
-      summary: {
-        totalMatches,
-        wins,
-        losses,
-        draws,
-        winRate: totalMatches > 0 ? `${((wins / totalMatches) * 100).toFixed(1)}%` : "0%",
-        avgGoals: totalMatches > 0 ? (totalGoals / totalMatches).toFixed(1) : "0",
-        avgPossession: totalMatches > 0 ? `${Math.round(totalPossession / totalMatches)}%` : "50%",
-      },
-      matches: matchResults,
-    });
+    res.json({ ouid, matchType, summary: summarizeMatches(matches), matches });
   } catch (err: any) {
     res.status(500).json({ error: true, message: err.message });
   }
@@ -308,6 +244,8 @@ nexonRouter.get("/live-match", async (req: Request, res: Response) => {
       return res.json({ isPlaying: false, message: "매치 상세 정보를 불러올 수 없습니다." });
     }
 
+    const meta = await ensureMetaLoaded();
+
     const mData = await mDetailRes.json();
     const matchTime = new Date(mData.matchDate).getTime();
     const now = Date.now();
@@ -321,7 +259,7 @@ nexonRouter.get("/live-match", async (req: Request, res: Response) => {
         isPlaying: true,
         liveMatch: {
           matchId: matchIds[0],
-          matchType: getMatchTypeName(await ensureMetaLoaded(), mData.matchType),
+          matchType: getMatchTypeName(meta, mData.matchType),
           currentMinute: Math.min(90, Math.floor(diffMinutes * 5)),
           period: diffMinutes > 8 ? "후반전" : "전반전",
           stadium: "공식 경기장",
@@ -382,52 +320,7 @@ nexonRouter.get("/match-detail", async (req: Request, res: Response) => {
     const meta = await ensureMetaLoaded();
 
     // 넥슨 원본(matchInfo[])을 화면이 쓰는 teams[] 뷰 모델로 정규화한다.
-    // 선수명·포지션·시즌은 정적 메타에서 조인한다(원본은 spId/spPosition만 제공).
-    const teams = (mData.matchInfo ?? []).map((info: any) => ({
-      ouid: info.ouid,
-      nickname: info.nickname,
-      result: info.matchDetail?.matchResult ?? "무",
-      score: info.shoot?.goalTotal ?? 0,
-      possession: info.matchDetail?.possession ?? 50,
-      totalShots: info.shoot?.shootTotal ?? 0,
-      effectiveShots: info.shoot?.effectiveShootTotal ?? 0,
-      passSuccessRate: toRate(info.pass?.passSuccess, info.pass?.passTry),
-      tackleSuccessRate: toRate(info.defence?.tackleSuccess, info.defence?.tackleTry),
-      controller: info.matchDetail?.controller ?? "pad",
-      averageRating: info.matchDetail?.averageRating ?? 0,
-      squad: (info.player ?? []).map((p: any) => ({
-        spId: p.spId,
-        name: getPlayerName(meta, p.spId),
-        season: getSeasonName(meta, p.spId),
-        position: getPositionName(meta, p.spPosition),
-        spPosition: p.spPosition,
-        grade: p.spGrade ?? 0,
-        goals: p.status?.goal ?? 0,
-        assists: p.status?.assist ?? 0,
-        rating: p.status?.spRating ?? 0,
-        image: getPlayerImageUrl(p.spId),
-        // ranker-stats와 같은 어휘로 맞춰 랭커 평균과 직접 비교할 수 있게 한다.
-        stats: {
-          shoot: p.status?.shoot ?? 0,
-          effectiveShoot: p.status?.effectiveShoot ?? 0,
-          goal: p.status?.goal ?? 0,
-          assist: p.status?.assist ?? 0,
-          dribbleTry: p.status?.dribbleTry ?? 0,
-          dribbleSuccess: p.status?.dribbleSuccess ?? 0,
-          passTry: p.status?.passTry ?? 0,
-          passSuccess: p.status?.passSuccess ?? 0,
-          block: p.status?.block ?? 0,
-          tackle: p.status?.tackle ?? 0,
-        },
-      })),
-    }));
-
-    res.json({
-      matchId: mData.matchId,
-      matchDate: mData.matchDate,
-      matchType: getMatchTypeName(meta, mData.matchType),
-      teams,
-    });
+    res.json(normalizeMatchDetail(mData, meta));
   } catch (err: any) {
     console.error("[nexon] match-detail 처리 실패:", err.message);
     res.status(500).json({ error: true, message: err.message });
@@ -438,33 +331,6 @@ nexonRouter.get("/match-detail", async (req: Request, res: Response) => {
 // ranker-stats는 랭커 순위표가 아니라 "지정한 선수를 TOP 10,000 랭커가 썼을 때의
 // 20경기 집계"를 돌려준다. players 파라미터가 없으면 OPENAPI00004로 실패한다.
 // 스쿼드 전체를 한 번에 조회할 수 있어(요청당 1콜) rate limit을 피할 수 있다.
-const MAX_RANKER_STATS_PLAYERS = 30;
-
-interface RankerStatsQuery {
-  id: number;
-  po: number;
-}
-
-// players 쿼리(JSON 문자열)를 검증한다. 유효하지 않으면 null.
-function parsePlayersParam(raw: unknown): RankerStatsQuery[] | null {
-  if (typeof raw !== "string" || !raw.trim()) return null;
-
-  try {
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed) || parsed.length === 0) return null;
-
-    const players = parsed.slice(0, MAX_RANKER_STATS_PLAYERS).map((p: any) => ({
-      id: Number(p?.id),
-      po: Number(p?.po),
-    }));
-
-    if (players.some((p) => !Number.isFinite(p.id) || !Number.isFinite(p.po))) return null;
-    return players;
-  } catch {
-    return null;
-  }
-}
-
 nexonRouter.get("/ranker-stats", async (req: Request, res: Response) => {
   const apiKey = resolveApiKey(req, res);
   if (!apiKey) return;
@@ -501,17 +367,7 @@ nexonRouter.get("/ranker-stats", async (req: Request, res: Response) => {
     const raw = await response.json();
     const meta = await ensureMetaLoaded();
 
-    const stats = (Array.isArray(raw) ? raw : []).map((s: any) => ({
-      spid: s.spid,
-      spPosition: s.spPosition,
-      name: getPlayerName(meta, s.spid),
-      season: getSeasonName(meta, s.spid),
-      position: getPositionName(meta, s.spPosition),
-      image: getPlayerImageUrl(s.spid),
-      status: s.status,
-    }));
-
-    res.json({ matchType, stats });
+    res.json({ matchType, stats: normalizeRankerStats(raw, meta) });
   } catch (err: any) {
     console.error("[nexon] ranker-stats 처리 실패:", err.message);
     res.status(500).json({ error: true, message: err.message });
@@ -601,17 +457,7 @@ nexonRouter.get("/trade", async (req: Request, res: Response) => {
     const meta = await ensureMetaLoaded();
 
     // 넥슨 원본은 spid만 제공하므로 선수명·시즌·이미지를 정적 메타에서 조인한다.
-    const trades = (Array.isArray(rawTrades) ? rawTrades : []).map((t: any) => ({
-      tradeDate: t.tradeDate,
-      saleSn: t.saleSn,
-      spid: t.spid,
-      grade: t.grade ?? 0,
-      value: t.value ?? 0,
-      name: getPlayerName(meta, t.spid),
-      season: getSeasonName(meta, t.spid),
-      image: getPlayerImageUrl(t.spid),
-    }));
-
+    const trades = normalizeTrades(rawTrades, meta);
     res.json({ tradeType, totalCount: trades.length, trades });
   } catch (err: any) {
     res.status(500).json({ error: true, message: err.message });

@@ -122,6 +122,7 @@ export const MatchHistoryList: React.FC<MatchHistoryListProps> = ({
       )}
 
       {!loading &&
+        !error &&
         visible.map((m) => {
           const accent = accentClasses(m.result);
           const isExpanded = expandedId === m.matchId;
