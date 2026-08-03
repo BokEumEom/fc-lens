@@ -1,3 +1,5 @@
+// .env를 가장 먼저 로드한다 (라우트가 process.env를 읽기 전에 채워져야 함)
+import "dotenv/config";
 import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";

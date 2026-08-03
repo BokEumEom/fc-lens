@@ -389,7 +389,13 @@ nexonRouter.get("/rankers", async (req: Request, res: Response) => {
     );
 
     if (!response.ok) {
-      res.status(response.status).json({ error: true, message: "넥슨 API 랭커 정보 조회에 실패했습니다." });
+      const detail = await response.json().catch(() => null);
+      console.error("[nexon] ranker-stats 실패", response.status, detail);
+      res.status(response.status).json({
+        error: true,
+        message: "넥슨 API 랭커 정보 조회에 실패했습니다.",
+        detail: detail?.error ?? null,
+      });
       return;
     }
 
