@@ -97,6 +97,21 @@ export interface LiveMatchResponse {
 
 // match-detail은 서버에서 넥슨 원본(matchInfo[])을 teams[]로 정규화해 내려준다.
 // 선수명/포지션/시즌은 서버가 정적 메타에서 조인한 값이다.
+// match-detail과 ranker-stats가 공유하는 선수 스탯 어휘.
+// 두 응답이 같은 키를 쓰므로 "내 선수 vs 랭커 평균"을 그대로 비교할 수 있다.
+export interface PlayerStats {
+  shoot: number;
+  effectiveShoot: number;
+  goal: number;
+  assist: number;
+  dribbleTry: number;
+  dribbleSuccess: number;
+  passTry: number;
+  passSuccess: number;
+  block: number;
+  tackle: number;
+}
+
 export interface MatchSquadPlayer {
   spId: number;
   name: string;
@@ -108,6 +123,7 @@ export interface MatchSquadPlayer {
   assists: number;
   rating: number;
   image: string;
+  stats: PlayerStats;
 }
 
 export interface MatchTeam {
@@ -151,14 +167,21 @@ export interface TradeResponse {
   trades: TradeRecord[];
 }
 
-// ranker-stats 응답 스키마는 실제 응답 확인 후 확정 (SPEC: TOP 10,000 랭커 사용 선수 20경기)
+// ranker-stats: 지정한 선수를 TOP 10,000 랭커가 썼을 때의 20경기 집계.
+// 랭커 유저 순위표가 아니다 (PLAN.md "랭킹 탭 재정의" 참고).
 export interface RankerStat {
-  [key: string]: unknown;
+  spid: number;
+  spPosition: number;
+  name: string;
+  season: string;
+  position: string;
+  image: string;
+  status: PlayerStats & { matchCount: number };
 }
 
-export interface RankersResponse {
+export interface RankerStatsResponse {
   matchType: string;
-  rankers: RankerStat[];
+  stats: RankerStat[];
 }
 
 export interface MetadataResponse<T = unknown> {

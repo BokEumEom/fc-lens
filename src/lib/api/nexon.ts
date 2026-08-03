@@ -7,7 +7,7 @@ import type {
   LiveMatchResponse,
   MatchDetailResponse,
   TradeResponse,
-  RankersResponse,
+  RankerStatsResponse,
   MetadataResponse,
   ImagesResponse,
   StatusResponse,
@@ -50,8 +50,22 @@ export function getMatchDetail(matchid: string): Promise<MatchDetailResponse> {
   return apiGet<MatchDetailResponse>("/nexon/match-detail", { matchid });
 }
 
-export function getRankers(matchtype: string | number = 50): Promise<RankersResponse> {
-  return apiGet<RankersResponse>("/nexon/rankers", { matchtype });
+export interface RankerStatsPlayer {
+  /** 선수 고유 식별자(spid) */
+  id: number;
+  /** 포지션 코드(spposition) */
+  po: number;
+}
+
+// 지정한 선수들의 랭커 사용 통계를 한 번에 조회한다(스쿼드 전체 = 1콜).
+export function getRankerStats(
+  players: RankerStatsPlayer[],
+  matchtype: string | number = 50
+): Promise<RankerStatsResponse> {
+  return apiGet<RankerStatsResponse>("/nexon/ranker-stats", {
+    matchtype,
+    players: JSON.stringify(players),
+  });
 }
 
 export interface TradeParams {

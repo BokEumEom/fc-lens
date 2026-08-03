@@ -1,5 +1,5 @@
 import React from 'react';
-import type { MatchDetailResponse, MatchSummary } from '../lib/api/types';
+import type { MatchDetailResponse, MatchSummary, MatchTeam } from '../lib/api/types';
 import { MatchScoreboard } from './match/MatchScoreboard';
 import { MatchSquadRatings } from './match/MatchSquadRatings';
 
@@ -8,6 +8,8 @@ interface MatchViewProps {
   selectedMatchId: string | null;
   onSelectMatch: (matchId: string) => void;
   matchDetail: MatchDetailResponse | null;
+  /** 구단주 본인 팀 (teams[] 순서는 넥슨 원본 순서라 첫 번째가 내 팀이 아닐 수 있다) */
+  myTeam: MatchTeam | null;
   loading: boolean;
   error: string | null;
   ownerNickname: string;
@@ -24,6 +26,7 @@ export const MatchView: React.FC<MatchViewProps> = ({
   selectedMatchId,
   onSelectMatch,
   matchDetail,
+  myTeam,
   loading,
   error,
   ownerNickname,
@@ -96,7 +99,7 @@ export const MatchView: React.FC<MatchViewProps> = ({
     {!loading && matchDetail && (
       <div className="space-y-4">
         <MatchScoreboard detail={matchDetail} />
-        {matchDetail.teams[0] && <MatchSquadRatings team={matchDetail.teams[0]} />}
+        {myTeam && <MatchSquadRatings team={myTeam} />}
       </div>
     )}
   </div>

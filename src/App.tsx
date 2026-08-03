@@ -79,6 +79,7 @@ export default function App() {
             selectedMatchId={owner.selectedMatchId}
             onSelectMatch={owner.selectMatch}
             matchDetail={owner.matchDetail}
+            myTeam={owner.myTeam}
             loading={owner.matchDetailLoading}
             error={owner.matchDetailError}
             ownerNickname={owner.nickname}
@@ -96,7 +97,14 @@ export default function App() {
           />
         )}
 
-        {activeTab === 'ranker' && <MetaView />}
+        {activeTab === 'ranker' && (
+          <MetaView
+            matchDetail={owner.matchDetail}
+            myTeam={owner.myTeam}
+            matchType={owner.matchType}
+            matchLoading={owner.matchDetailLoading}
+          />
+        )}
       </main>
 
       <BottomNav activeTab={activeTab} setActiveTab={navigateTab} />

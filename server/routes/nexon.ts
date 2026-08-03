@@ -406,6 +406,19 @@ nexonRouter.get("/match-detail", async (req: Request, res: Response) => {
         assists: p.status?.assist ?? 0,
         rating: p.status?.spRating ?? 0,
         image: getPlayerImageUrl(p.spId),
+        // ranker-stats와 같은 어휘로 맞춰 랭커 평균과 직접 비교할 수 있게 한다.
+        stats: {
+          shoot: p.status?.shoot ?? 0,
+          effectiveShoot: p.status?.effectiveShoot ?? 0,
+          goal: p.status?.goal ?? 0,
+          assist: p.status?.assist ?? 0,
+          dribbleTry: p.status?.dribbleTry ?? 0,
+          dribbleSuccess: p.status?.dribbleSuccess ?? 0,
+          passTry: p.status?.passTry ?? 0,
+          passSuccess: p.status?.passSuccess ?? 0,
+          block: p.status?.block ?? 0,
+          tackle: p.status?.tackle ?? 0,
+        },
       })),
     }));
 
@@ -422,32 +435,85 @@ nexonRouter.get("/match-detail", async (req: Request, res: Response) => {
 });
 
 // 3. 랭커 정보 조회 (SPEC: /fconline/v1/ranker-stats — TOP 10,000 랭커 사용 선수 20경기 통계)
-nexonRouter.get("/rankers", async (req: Request, res: Response) => {
+// ranker-stats는 랭커 순위표가 아니라 "지정한 선수를 TOP 10,000 랭커가 썼을 때의
+// 20경기 집계"를 돌려준다. players 파라미터가 없으면 OPENAPI00004로 실패한다.
+// 스쿼드 전체를 한 번에 조회할 수 있어(요청당 1콜) rate limit을 피할 수 있다.
+const MAX_RANKER_STATS_PLAYERS = 30;
+
+interface RankerStatsQuery {
+  id: number;
+  po: number;
+}
+
+// players 쿼리(JSON 문자열)를 검증한다. 유효하지 않으면 null.
+function parsePlayersParam(raw: unknown): RankerStatsQuery[] | null {
+  if (typeof raw !== "string" || !raw.trim()) return null;
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed) || parsed.length === 0) return null;
+
+    const players = parsed.slice(0, MAX_RANKER_STATS_PLAYERS).map((p: any) => ({
+      id: Number(p?.id),
+      po: Number(p?.po),
+    }));
+
+    if (players.some((p) => !Number.isFinite(p.id) || !Number.isFinite(p.po))) return null;
+    return players;
+  } catch {
+    return null;
+  }
+}
+
+nexonRouter.get("/ranker-stats", async (req: Request, res: Response) => {
   const apiKey = resolveApiKey(req, res);
   if (!apiKey) return;
 
   const matchType = (req.query.matchtype as string) || "50";
+  const players = parsePlayersParam(req.query.players);
+
+  if (!players) {
+    return res.status(400).json({
+      error: true,
+      message: "players 파라미터가 필요합니다. 예: [{\"id\":250102143,\"po\":25}]",
+    });
+  }
 
   try {
-    const response = await fetch(
-      `${NEXON_FCONLINE}/ranker-stats?matchtype=${matchType}`,
-      { headers: nexonHeaders(apiKey) }
-    );
+    const url =
+      `${NEXON_FCONLINE}/ranker-stats?matchtype=${matchType}` +
+      `&players=${encodeURIComponent(JSON.stringify(players))}`;
+    const response = await fetch(url, { headers: nexonHeaders(apiKey) });
 
     if (!response.ok) {
       const detail = await response.json().catch(() => null);
       console.error("[nexon] ranker-stats 실패", response.status, detail);
-      res.status(response.status).json({
+      return res.status(response.status).json({
         error: true,
-        message: "넥슨 API 랭커 정보 조회에 실패했습니다.",
+        message:
+          response.status === 429
+            ? "넥슨 API 호출이 일시적으로 제한되었습니다. 잠시 후 다시 시도해주세요."
+            : "랭커 통계 조회에 실패했습니다.",
         detail: detail?.error ?? null,
       });
-      return;
     }
 
-    const rankerData = await response.json();
-    res.json({ matchType, rankers: rankerData });
+    const raw = await response.json();
+    const meta = await ensureMetaLoaded();
+
+    const stats = (Array.isArray(raw) ? raw : []).map((s: any) => ({
+      spid: s.spid,
+      spPosition: s.spPosition,
+      name: getPlayerName(meta, s.spid),
+      season: getSeasonName(meta, s.spid),
+      position: getPositionName(meta, s.spPosition),
+      image: getPlayerImageUrl(s.spid),
+      status: s.status,
+    }));
+
+    res.json({ matchType, stats });
   } catch (err: any) {
+    console.error("[nexon] ranker-stats 처리 실패:", err.message);
     res.status(500).json({ error: true, message: err.message });
   }
 });

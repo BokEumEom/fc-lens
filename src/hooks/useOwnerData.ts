@@ -11,6 +11,7 @@ import type {
   LiveMatch,
   MatchDetailResponse,
   MatchSummary,
+  MatchTeam,
   MatchesSummary,
   TradeRecord,
 } from "../lib/api/types";
@@ -49,6 +50,9 @@ export interface OwnerData {
   matchDetail: MatchDetailResponse | null;
   matchDetailLoading: boolean;
   matchDetailError: string | null;
+  /** 선택된 매치에서 조회한 구단주 본인의 팀 (없으면 첫 번째 팀) */
+  myTeam: MatchTeam | null;
+  opponentTeam: MatchTeam | null;
 
   tradeType: TradeType;
   setTradeType: (tradeType: TradeType) => void;
@@ -249,6 +253,11 @@ export function useOwnerData(apiKeyRevision: string): OwnerData {
     if (trimmed) setNickname(trimmed);
   }, []);
 
+  // 매치 상세의 teams[] 순서는 넥슨 원본 순서라 내 팀이 앞이라는 보장이 없다.
+  const teams = matchDetail?.teams ?? [];
+  const myTeam = teams.find((t) => t.ouid === ouid) ?? teams[0] ?? null;
+  const opponentTeam = teams.find((t) => t !== myTeam) ?? null;
+
   const refreshLive = useCallback(() => setLiveNonce((n) => n + 1), []);
   const setMatchType = useCallback((next: string) => setMatchTypeState(next), []);
   const setTradeType = useCallback((next: TradeType) => setTradeTypeState(next), []);
@@ -275,6 +284,8 @@ export function useOwnerData(apiKeyRevision: string): OwnerData {
     matchDetail,
     matchDetailLoading,
     matchDetailError,
+    myTeam,
+    opponentTeam,
     tradeType,
     setTradeType,
     trades,
