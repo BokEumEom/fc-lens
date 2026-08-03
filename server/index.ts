@@ -5,12 +5,16 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import { nexonRouter } from "./routes/nexon";
 import { aiRouter } from "./routes/ai";
+import { preloadMeta } from "./lib/meta";
 
 async function startServer() {
   const app = express();
   const PORT = 3000;
 
   app.use(express.json());
+
+  // 선수명/포지션/시즌 메타를 백그라운드로 미리 적재 (첫 매치 상세 조회 지연 방지)
+  preloadMeta();
 
   // API 라우트 (넥슨 프록시 + AI 어시스턴트)
   app.use("/api/nexon", nexonRouter);

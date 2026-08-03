@@ -9,8 +9,21 @@ import {
   nexonHeaders,
   fetchOuidByNickname,
 } from "../lib/nexonClient";
+import {
+  ensureMetaLoaded,
+  getPlayerName,
+  getPositionName,
+  getSeasonName,
+  getPlayerImageUrl,
+} from "../lib/meta";
 
 export const nexonRouter = Router();
+
+// 시도/성공 횟수를 성공률(%)로 변환. 시도가 없으면 0.
+function toRate(success?: number, tries?: number): number {
+  if (!tries || tries <= 0) return 0;
+  return Math.round(((success ?? 0) / tries) * 100);
+}
 
 // ------------------------------------------------------------------
 // NEXON Open API 프록시 라우트 (참고: SPEC.md)
@@ -364,13 +377,44 @@ nexonRouter.get("/match-detail", async (req: Request, res: Response) => {
     }
 
     const mData = await response.json();
+    const meta = await ensureMetaLoaded();
+
+    // 넥슨 원본(matchInfo[])을 화면이 쓰는 teams[] 뷰 모델로 정규화한다.
+    // 선수명·포지션·시즌은 정적 메타에서 조인한다(원본은 spId/spPosition만 제공).
+    const teams = (mData.matchInfo ?? []).map((info: any) => ({
+      ouid: info.ouid,
+      nickname: info.nickname,
+      result: info.matchDetail?.matchResult ?? "무",
+      score: info.shoot?.goalTotal ?? 0,
+      possession: info.matchDetail?.possession ?? 50,
+      totalShots: info.shoot?.shootTotal ?? 0,
+      effectiveShots: info.shoot?.effectiveShootTotal ?? 0,
+      passSuccessRate: toRate(info.pass?.passSuccess, info.pass?.passTry),
+      tackleSuccessRate: toRate(info.defence?.tackleSuccess, info.defence?.tackleTry),
+      controller: info.matchDetail?.controller ?? "pad",
+      averageRating: info.matchDetail?.averageRating ?? 0,
+      squad: (info.player ?? []).map((p: any) => ({
+        spId: p.spId,
+        name: getPlayerName(meta, p.spId),
+        season: getSeasonName(meta, p.spId),
+        position: getPositionName(meta, p.spPosition),
+        spPosition: p.spPosition,
+        grade: p.spGrade ?? 0,
+        goals: p.status?.goal ?? 0,
+        assists: p.status?.assist ?? 0,
+        rating: p.status?.spRating ?? 0,
+        image: getPlayerImageUrl(p.spId),
+      })),
+    }));
+
     res.json({
       matchId: mData.matchId,
       matchDate: mData.matchDate,
       matchType: mData.matchType,
-      matchInfo: mData.matchInfo,
+      teams,
     });
   } catch (err: any) {
+    console.error("[nexon] match-detail 처리 실패:", err.message);
     res.status(500).json({ error: true, message: err.message });
   }
 });

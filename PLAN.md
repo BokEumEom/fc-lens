@@ -15,6 +15,28 @@
 - 아키텍처: **얇은 서버 프록시 유지**(키·CORS) + 프론트 `lib/api`·`hooks` 레이어.
   - 근거: 넥슨 키를 브라우저에 노출할 수 없고, 넥슨 Open API는 서버-투-서버(CORS 미허용). 따라서 넥슨 직접 호출을 프론트로 옮길 수 없음.
 - 데이터 흐름: `컴포넌트 → src/hooks → src/lib/api → /api/* (프록시) → open.api.nexon.com`.
+- 하단 4탭 = 공식 API 도메인 1:1 — 구단주 / 매치 / 이적 / 랭킹(→메타).
+- 개발용 화면(메타데이터·이미지 조회)은 제품 기능이 아니므로 제거. 서버 라우트는 존치.
+- 별도 홈 없음. 구단주 탭이 진입 화면.
+
+## 랭킹 탭 재정의 — "내 스쿼드 vs 랭커" 벤치마크
+
+`ranker-stats`는 랭커 순위표가 아니라 **특정 선수의 랭커 사용 통계** 조회 API임을 실측 확인했다.
+
+```
+GET /fconline/v1/ranker-stats?matchtype=50&players=[{"id":<spid>,"po":<spposition>}, ...]
+→ [{ spid, spPosition, status{shoot,goal,assist,dribble,passTry,passSuccess,block,tackle,matchCount}, createDate }]
+```
+
+- 파라미터 누락 시 `OPENAPI00004`, 연속 호출 시 `OPENAPI00007`(rate limit).
+- **배치 조회 가능** — 스쿼드 18명을 1회 호출로 처리. 경기당 1콜이므로 rate limit 회피됨.
+- `match-detail`의 `player[]`(`spId`/`spPosition`/`spGrade` + `status`)가 `ranker-stats`와 **동일 스탯 스키마**라 그대로 조인 가능.
+
+→ 랭킹 탭은 "내가 쓴 선수의 실적 vs 랭커 평균" 비교 화면으로 재정의한다. 탭 이름은 **메타**.
+
+- 서버: `/api/nexon/rankers` → `/api/nexon/ranker-stats` (matchtype + players 배열 프록시).
+- `spid.json`(6.3MB / 88,250건)은 **서버 기동 시 1회 로드해 메모리 캐시**하고 이름을 조인해 내려준다. 클라이언트로 원본을 보내지 않는다.
+- 전체 선수 티어표는 범위 밖 — 공식 API에 "인기 선수" 목록이 없어 조회 대상 선정 근거가 없음.
 
 ## 목표 폴더 구조 (Target)
 

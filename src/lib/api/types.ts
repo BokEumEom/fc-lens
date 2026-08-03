@@ -95,11 +95,41 @@ export interface LiveMatchResponse {
   liveMatch?: LiveMatch;
 }
 
+// match-detail은 서버에서 넥슨 원본(matchInfo[])을 teams[]로 정규화해 내려준다.
+// 선수명/포지션/시즌은 서버가 정적 메타에서 조인한 값이다.
+export interface MatchSquadPlayer {
+  spId: number;
+  name: string;
+  season: string;
+  position: string;
+  spPosition: number;
+  grade: number;
+  goals: number;
+  assists: number;
+  rating: number;
+  image: string;
+}
+
+export interface MatchTeam {
+  ouid: string;
+  nickname: string;
+  result: MatchResult;
+  score: number;
+  possession: number;
+  totalShots: number;
+  effectiveShots: number;
+  passSuccessRate: number;
+  tackleSuccessRate: number;
+  controller: string;
+  averageRating: number;
+  squad: MatchSquadPlayer[];
+}
+
 export interface MatchDetailResponse {
   matchId: string;
   matchDate: string;
   matchType: number;
-  matchInfo: unknown[];
+  teams: MatchTeam[];
 }
 
 export interface TradeRecord {
