@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 
-const POPULAR_NICKNAMES = ['두치와뿌꾸', '감스트', '김병지', '환경', '신보석'];
+// 검색 예시용 구단주. 처음 방문한 사용자가 바로 화면을 확인해볼 수 있게 한다.
+const SAMPLE_NICKNAMES = ['두치와뿌꾸', '감스트', '김병지', '환경', '신보석'];
 
 interface OwnerSearchBarProps {
   currentNickname: string;
@@ -52,8 +53,8 @@ export const OwnerSearchBar: React.FC<OwnerSearchBarProps> = ({
       </div>
 
       <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-1">
-        <span className="font-data text-[10px] text-[#C3CAAC] whitespace-nowrap">빠른 선택:</span>
-        {POPULAR_NICKNAMES.map((name) => (
+        <span className="font-data text-[10px] text-[#C3CAAC] whitespace-nowrap">예시:</span>
+        {SAMPLE_NICKNAMES.map((name) => (
           <button
             key={name}
             type="button"

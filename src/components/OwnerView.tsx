@@ -30,6 +30,16 @@ export const OwnerView: React.FC<OwnerViewProps> = ({ owner, onOpenMatchDetail, 
       onSearch={owner.searchOwner}
     />
 
+    {!owner.nickname && !owner.accountLoading && (
+      <div className="bg-[#161A1E] border border-[#2D333B] rounded-2xl p-8 text-center space-y-2">
+        <span className="material-symbols-outlined text-[#B9F600] text-4xl">person_search</span>
+        <p className="text-sm font-bold text-white">구단주를 검색해보세요</p>
+        <p className="text-[11px] text-[#C3CAAC] font-data leading-relaxed">
+          FC Online 닉네임으로 전적 · 매치 상세 · 이적 내역 · 랭커 벤치마크를 확인할 수 있습니다.
+        </p>
+      </div>
+    )}
+
     {owner.accountLoading && (
       <div className="bg-[#161A1E] border border-[#2D333B] rounded-2xl p-8 flex flex-col items-center justify-center space-y-2 text-center">
         <span className="material-symbols-outlined text-[#B9F600] text-3xl animate-spin">sync</span>

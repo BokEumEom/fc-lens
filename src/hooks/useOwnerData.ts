@@ -15,8 +15,8 @@ import type {
   MatchesSummary,
   TradeRecord,
 } from "../lib/api/types";
+import { getLastOwner, setLastOwner } from "../lib/storage";
 
-export const DEFAULT_NICKNAME = "두치와뿌꾸";
 const MATCH_HISTORY_LIMIT = 10;
 
 export type TradeType = "buy" | "sell";
@@ -68,7 +68,8 @@ export interface OwnerData {
  * @param apiKeyRevision 저장된 API 키가 바뀔 때 재조회를 트리거하기 위한 값
  */
 export function useOwnerData(apiKeyRevision: string): OwnerData {
-  const [nickname, setNickname] = useState(DEFAULT_NICKNAME);
+  // 마지막으로 조회한 구단주를 이어서 보여준다. 처음 방문이면 빈 값 → 검색 안내 화면.
+  const [nickname, setNickname] = useState(() => getLastOwner());
 
   const [account, setAccount] = useState<AccountInfo | null>(null);
   const [accountLoading, setAccountLoading] = useState(false);
@@ -250,7 +251,9 @@ export function useOwnerData(apiKeyRevision: string): OwnerData {
 
   const searchOwner = useCallback((next: string) => {
     const trimmed = next.trim();
-    if (trimmed) setNickname(trimmed);
+    if (!trimmed) return;
+    setNickname(trimmed);
+    setLastOwner(trimmed);
   }, []);
 
   // 매치 상세의 teams[] 순서는 넥슨 원본 순서라 내 팀이 앞이라는 보장이 없다.

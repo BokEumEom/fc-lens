@@ -76,7 +76,10 @@ async function handleAccount(req: Request, res: Response) {
   const apiKey = resolveApiKey(req, res);
   if (!apiKey) return;
 
-  const nickname = (req.query.nickname as string) || "두치와뿌꾸";
+  const nickname = ((req.query.nickname as string) || "").trim();
+  if (!nickname) {
+    return res.status(400).json({ error: true, message: "nickname 파라미터가 필요합니다." });
+  }
 
   try {
     // 1-1 OUID lookup
@@ -149,10 +152,7 @@ async function handleAccount(req: Request, res: Response) {
 nexonRouter.get("/account", handleAccount);
 
 // 하위호환 별칭 (구 user-lookup → account)
-nexonRouter.get("/user-lookup", (req: Request, res: Response) => {
-  req.query.nickname = (req.query.nickname as string) || "두치와뿌꾸";
-  return handleAccount(req, res);
-});
+nexonRouter.get("/user-lookup", handleAccount);
 
 // 2. 최근 매치 기록 목록 조회 (집계 포함)
 nexonRouter.get("/user-matches", async (req: Request, res: Response) => {
