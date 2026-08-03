@@ -14,6 +14,7 @@ import {
   getPlayerName,
   getPositionName,
   getSeasonName,
+  getMatchTypeName,
   getPlayerImageUrl,
 } from "../lib/meta";
 
@@ -182,6 +183,7 @@ nexonRouter.get("/user-matches", async (req: Request, res: Response) => {
     }
 
     const matchIds: string[] = await matchRes.json();
+    const meta = await ensureMetaLoaded();
 
     const matchPromises = matchIds.map(async (mId) => {
       try {
@@ -215,7 +217,7 @@ nexonRouter.get("/user-matches", async (req: Request, res: Response) => {
         return {
           matchId: mId,
           matchDate: mData.matchDate,
-          matchType: mData.matchType === 50 ? "공식경기 1vs1" : `매치타입 (${mData.matchType})`,
+          matchType: getMatchTypeName(meta, mData.matchType),
           result,
           score: `${myGoals} : ${oppGoals}`,
           myGoals,
@@ -319,7 +321,7 @@ nexonRouter.get("/live-match", async (req: Request, res: Response) => {
         isPlaying: true,
         liveMatch: {
           matchId: matchIds[0],
-          matchType: mData.matchType === 50 ? "공식경기 1vs1" : "클래식 매치",
+          matchType: getMatchTypeName(await ensureMetaLoaded(), mData.matchType),
           currentMinute: Math.min(90, Math.floor(diffMinutes * 5)),
           period: diffMinutes > 8 ? "후반전" : "전반전",
           stadium: "공식 경기장",
@@ -410,7 +412,7 @@ nexonRouter.get("/match-detail", async (req: Request, res: Response) => {
     res.json({
       matchId: mData.matchId,
       matchDate: mData.matchDate,
-      matchType: mData.matchType,
+      matchType: getMatchTypeName(meta, mData.matchType),
       teams,
     });
   } catch (err: any) {
@@ -530,11 +532,21 @@ nexonRouter.get("/trade", async (req: Request, res: Response) => {
     }
 
     const rawTrades = await response.json();
-    res.json({
-      tradeType,
-      totalCount: Array.isArray(rawTrades) ? rawTrades.length : 0,
-      trades: rawTrades,
-    });
+    const meta = await ensureMetaLoaded();
+
+    // 넥슨 원본은 spid만 제공하므로 선수명·시즌·이미지를 정적 메타에서 조인한다.
+    const trades = (Array.isArray(rawTrades) ? rawTrades : []).map((t: any) => ({
+      tradeDate: t.tradeDate,
+      saleSn: t.saleSn,
+      spid: t.spid,
+      grade: t.grade ?? 0,
+      value: t.value ?? 0,
+      name: getPlayerName(meta, t.spid),
+      season: getSeasonName(meta, t.spid),
+      image: getPlayerImageUrl(t.spid),
+    }));
+
+    res.json({ tradeType, totalCount: trades.length, trades });
   } catch (err: any) {
     res.status(500).json({ error: true, message: err.message });
   }

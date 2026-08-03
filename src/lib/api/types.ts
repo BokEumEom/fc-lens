@@ -128,17 +128,21 @@ export interface MatchTeam {
 export interface MatchDetailResponse {
   matchId: string;
   matchDate: string;
-  matchType: number;
+  /** 서버가 matchtype 메타로 변환한 사람이 읽는 이름 */
+  matchType: string;
   teams: MatchTeam[];
 }
 
+// 선수명/시즌/이미지는 서버가 정적 메타에서 조인한 값이다.
 export interface TradeRecord {
-  tradeDate?: string;
-  saleSn?: string;
-  spid?: number;
-  grade?: number;
-  value?: number;
-  [key: string]: unknown;
+  tradeDate: string;
+  saleSn: string;
+  spid: number;
+  grade: number;
+  value: number;
+  name: string;
+  season: string;
+  image: string;
 }
 
 export interface TradeResponse {

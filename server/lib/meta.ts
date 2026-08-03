@@ -25,10 +25,16 @@ interface SeasonMeta {
   seasonImg: string;
 }
 
+interface MatchTypeMeta {
+  matchtype: number;
+  desc: string;
+}
+
 interface MetaTables {
   playerNames: ReadonlyMap<number, string>;
   positions: ReadonlyMap<number, string>;
   seasons: ReadonlyMap<number, SeasonMeta>;
+  matchTypes: ReadonlyMap<number, string>;
 }
 
 let tables: MetaTables | null = null;
@@ -43,16 +49,18 @@ async function fetchJson<T>(url: string): Promise<T> {
 }
 
 async function loadTables(): Promise<MetaTables> {
-  const [spids, positions, seasons] = await Promise.all([
+  const [spids, positions, seasons, matchTypes] = await Promise.all([
     fetchJson<SpidMeta[]>(`${META_BASE}/spid.json`),
     fetchJson<SppositionMeta[]>(`${META_BASE}/spposition.json`),
     fetchJson<SeasonMeta[]>(`${META_BASE}/seasonid.json`),
+    fetchJson<MatchTypeMeta[]>(`${META_BASE}/matchtype.json`),
   ]);
 
   return {
     playerNames: new Map(spids.map((s) => [s.id, s.name])),
     positions: new Map(positions.map((p) => [p.spposition, p.desc])),
     seasons: new Map(seasons.map((s) => [s.seasonId, s])),
+    matchTypes: new Map(matchTypes.map((m) => [m.matchtype, m.desc])),
   };
 }
 
@@ -98,6 +106,10 @@ export function getSeasonName(meta: MetaTables, spid: number): string {
 
 export function getSeasonImageUrl(meta: MetaTables, spid: number): string {
   return meta.seasons.get(Math.floor(spid / SEASON_DIVISOR))?.seasonImg ?? "";
+}
+
+export function getMatchTypeName(meta: MetaTables, matchtype: number): string {
+  return meta.matchTypes.get(matchtype) ?? `매치타입 ${matchtype}`;
 }
 
 export function getPlayerImageUrl(spid: number): string {
