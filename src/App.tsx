@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import { TabType } from './types';
 import { useApiKey } from './hooks/useApiKey';
 import { useOwnerData } from './hooks/useOwnerData';
@@ -69,42 +70,56 @@ export default function App() {
           </button>
         </div>
 
-        {activeTab === 'owner' && (
-          <OwnerView owner={owner} onOpenMatchDetail={openMatchDetail} onCopyOuid={copyOuid} />
-        )}
+        {/*
+          탭 전환 애니메이션. 데이터는 App의 훅(useOwnerData)이 소유하므로
+          뷰가 재마운트돼도 조회 결과는 유지된다.
+        */}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.22, ease: [0.25, 0.1, 0.25, 1] }}
+          >
+            {activeTab === 'owner' && (
+              <OwnerView owner={owner} onOpenMatchDetail={openMatchDetail} onCopyOuid={copyOuid} />
+            )}
 
-        {activeTab === 'match' && (
-          <MatchView
-            matches={owner.matches}
-            selectedMatchId={owner.selectedMatchId}
-            onSelectMatch={owner.selectMatch}
-            matchDetail={owner.matchDetail}
-            myTeam={owner.myTeam}
-            loading={owner.matchDetailLoading}
-            error={owner.matchDetailError}
-            ownerNickname={owner.nickname}
-          />
-        )}
+            {activeTab === 'match' && (
+              <MatchView
+                matches={owner.matches}
+                selectedMatchId={owner.selectedMatchId}
+                onSelectMatch={owner.selectMatch}
+                matchDetail={owner.matchDetail}
+                myTeam={owner.myTeam}
+                loading={owner.matchDetailLoading}
+                error={owner.matchDetailError}
+                ownerNickname={owner.nickname}
+              />
+            )}
 
-        {activeTab === 'trade' && (
-          <TradeView
-            trades={owner.trades}
-            tradeType={owner.tradeType}
-            onChangeTradeType={owner.setTradeType}
-            loading={owner.tradesLoading}
-            error={owner.tradesError}
-            ownerNickname={owner.nickname}
-          />
-        )}
+            {activeTab === 'trade' && (
+              <TradeView
+                trades={owner.trades}
+                tradeType={owner.tradeType}
+                onChangeTradeType={owner.setTradeType}
+                loading={owner.tradesLoading}
+                error={owner.tradesError}
+                ownerNickname={owner.nickname}
+              />
+            )}
 
-        {activeTab === 'ranker' && (
-          <MetaView
-            matchDetail={owner.matchDetail}
-            myTeam={owner.myTeam}
-            matchType={owner.matchType}
-            matchLoading={owner.matchDetailLoading}
-          />
-        )}
+            {activeTab === 'ranker' && (
+              <MetaView
+                matchDetail={owner.matchDetail}
+                myTeam={owner.myTeam}
+                matchType={owner.matchType}
+                matchLoading={owner.matchDetailLoading}
+              />
+            )}
+          </motion.div>
+        </AnimatePresence>
       </main>
 
       <BottomNav activeTab={activeTab} setActiveTab={navigateTab} />

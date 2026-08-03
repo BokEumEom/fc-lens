@@ -2,7 +2,7 @@
 
 리팩토링 진행 상태 추적 문서입니다. 관련: [PLAN.md](./PLAN.md) · [SPEC.md](./SPEC.md)
 
-- 최종 업데이트: Phase 3b 완료, Phase 3c(랭킹 재설계) 대기
+- 최종 업데이트: **전 Phase 완료** (1 · 2 · 3a · 3b · 3c · 4)
 - 기준 커밋(작업 시작): `054fbd5 refactor(api): improve NEXON API key validation`
 - 범례: ⬜ 대기 · 🔄 진행중 · ✅ 완료 · ⏭️ 보류
 
@@ -14,8 +14,8 @@
 | 2 | 프론트 API 레이어 추가 (lib/api, hooks) | ✅ |
 | 3a | 탭 재구성 & 목업 제거 | ✅ |
 | 3b | NexonUserView 분할 + hooks/lib 이전 | ✅ |
-| 3c | 랭킹 탭 재설계 (ranker-stats) | ⬜ 설계 필요 |
-| 4 | 문서/마무리 | ⬜ |
+| 3c | 랭킹 탭 재설계 (ranker-stats) | ✅ |
+| 4 | 문서/마무리 | ✅ |
 
 ## 확정된 결정 (Phase 3)
 
@@ -76,28 +76,31 @@
 - 매치타입 라벨을 넥슨 메타 기준으로 교정 (52는 볼타 라이브가 아니라 **감독모드**).
 - 서버 미지원 기능 제거: LIVE 시뮬레이션 토글, `isDemoData` 플래그.
 
-남은 항목:
-
-- [ ] 화면 전환 애니메이션 복원 (3a에서 재마운트 방지를 위해 제거된 상태)
-
-## Phase 3c — 랭킹 탭 재설계
+## Phase 3c — 랭킹 탭 재설계 ✅
 
 ⚠️ **`ranker-stats`는 랭커 순위표 엔드포인트가 아님** (실측 확인).
 
 - 필수 파라미터: `matchtype` + `players=[{id: spid, po: spposition}]`
 - 응답: 요청한 선수별 20경기 집계 `{spid, spPosition, status{shoot, goal, assist, dribble, passTry, passSuccess, block, tackle, matchCount}, createDate}`
 - 즉 "TOP 10,000 랭커가 **그 선수를** 썼을 때의 평균 스탯" 조회이지, 랭커 유저 목록이 아님.
-- 현재 `/api/nexon/rankers`는 `matchtype`만 보내 `OPENAPI00004`(invalid parameter)로 실패. UI도 없는 `rankers` 배열을 기대 중.
-- 참고: 짧은 간격 연속 호출 시 `OPENAPI00007`(rate limit) 발생 → 배치/캐싱 필요.
+- 짧은 간격 연속 호출 시 `OPENAPI00007`(rate limit) → **배치 조회로 해결**(스쿼드 18명 = 1콜).
+- `match-detail`의 `player[]`가 `ranker-stats`와 동일한 스탯 어휘를 사용 → 그대로 조인 가능.
 
-- [ ] 랭킹 탭 컨셉 재정의 후 라우트·UI 재작성
+- [x] `/api/nexon/rankers` → `/api/nexon/ranker-stats` 교체 (players 배열 검증·프록시·메타 조인)
+- [x] `match-detail` 스쿼드에 비교용 `stats` 추가 (동일 어휘)
+- [x] `useRankerStats` 재작성 (스쿼드 1회 조회, spid+포지션 키 Map)
+- [x] `MetaView` + `meta/PlayerBenchmarkRow` — 지표 6종 비교, 랭커 표본 수 노출, 미출전 제외
+- [x] `useOwnerData`에 `myTeam`/`opponentTeam` 추가 (teams[0]이 내 팀이 아닐 수 있음 — 매치 탭도 동일 버그였음)
+- [x] 출전 평균 평점 직접 계산 (넥슨 `averageRating`은 미출전 0점 포함으로 과소 집계)
 
-## Phase 4 — 문서/마무리
+## Phase 4 — 문서/마무리 ✅
 
-- [ ] `docs/architecture.md` 갱신
-- [ ] `AGENTS.md` 갱신
-- [ ] `README.md` 갱신
-- [ ] 최종 `npm run lint` 그린
+- [x] 화면 전환 애니메이션 복원 (상태가 App 훅으로 올라가 재마운트해도 데이터 유지)
+- [x] `docs/architecture.md` 전면 갱신 (구조·엔드포인트·데이터 흐름·설계 근거·알려진 제약)
+- [x] `AGENTS.md` 갱신 (데이터 흐름 고정 규칙, 타입 게이트 주의, 목업 폴백 규칙 삭제)
+- [x] `README.md` 전면 재작성 (4탭 기준, 삭제된 기능 서술 제거)
+- [x] `/api/nexon/status` 엔드포인트 목록의 구 `rankers` 경로 수정
+- [x] 최종 `npm run lint` / `vite build` 그린
 
 ## 로그 (Log)
 
@@ -110,3 +113,16 @@
 - Phase 3b 완료: `NexonUserView`(1,990줄) → 16개 파일로 분해. 최대 파일 265줄, `App.tsx` 106줄.
 - 부수 발견 3 — `/api/nexon/match-detail`이 넥슨 원본(`matchInfo[]`)을 그대로 반환하는데 UI는 `teams[]`를 기대. `res.json()`이 `any`라 tsc가 못 잡았고 매치 탭이 사실상 빈 화면이었음. 서버에서 `teams[]`로 정규화하고 `server/lib/meta.ts`(spid/spposition/seasonid/matchtype 캐시)로 선수명·포지션·시즌을 조인해 해결.
 - 부수 발견 4 — `@types/react` 미설치로 `tsc` 게이트가 React prop 오류를 전혀 검출하지 못하고 있었음. 설치 완료. (Phase 4 검토 항목이었으나 3b 검증을 위해 선반영)
+- Phase 3c 완료: 랭킹 탭을 "내 스쿼드 vs 랭커 평균" 벤치마크로 구현. 스쿼드 18명 배치 조회로 rate limit 회피.
+- 부수 발견 5 — `teams[]`는 넥슨 원본 순서라 `teams[0]`이 구단주 본인 팀이라는 보장이 없었음(매치 탭·메타 탭 공통). `ouid`로 식별하도록 수정.
+- 부수 발견 6 — 넥슨 `averageRating`이 미출전 선수의 0점까지 포함해 실제보다 크게 낮았음(실측 6.9 → 원본 4.3). 출전 선수 기준으로 직접 계산.
+- Phase 4 완료: 문서 3종 갱신 + 화면 전환 애니메이션 복원.
+
+## 남은 과제 (Follow-ups)
+
+- `POST /api/ai-squad-assistant`와 `askAiAdvisor()`는 존재하나 **호출하는 화면이 없다**
+  (구 `RankerView`가 유일한 사용처였고 Phase 3a에서 삭제됨). 재사용할지 제거할지 결정 필요.
+- `lib/api`의 `getStatus`/`getMetadata`/`getImages`도 현재 미사용. 서버 라우트의 타입 지정
+  클라이언트로서 유지 중.
+- 테스트 프레임워크 없음 (`package.json`에 테스트 스크립트/의존성 부재).
+- 클라이언트 라우터 미사용 — 탭 전환 시 URL이 변하지 않아 딥링크/뒤로가기 불가.

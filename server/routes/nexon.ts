@@ -39,7 +39,7 @@ nexonRouter.get("/status", (req: Request, res: Response) => {
     endpoints: [
       { id: 1, name: "계정 정보 (Account Info)", path: "/api/nexon/account" },
       { id: 2, name: "매치 정보 (Match Detail)", path: "/api/nexon/match-detail" },
-      { id: 3, name: "랭커 정보 (Ranker Stats)", path: "/api/nexon/rankers" },
+      { id: 3, name: "랭커 통계 (Ranker Stats)", path: "/api/nexon/ranker-stats" },
       { id: 4, name: "메타데이터 정보 (Metadata JSON)", path: "/api/nexon/metadata" },
       { id: 5, name: "이미지 정보 (Player & Season CDN)", path: "/api/nexon/images" },
     ],
