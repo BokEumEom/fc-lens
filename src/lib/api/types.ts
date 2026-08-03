@@ -95,8 +95,6 @@ export interface LiveMatchResponse {
   liveMatch?: LiveMatch;
 }
 
-// match-detail은 서버에서 넥슨 원본(matchInfo[])을 teams[]로 정규화해 내려준다.
-// 선수명/포지션/시즌은 서버가 정적 메타에서 조인한 값이다.
 // match-detail과 ranker-stats가 공유하는 선수 스탯 어휘.
 // 두 응답이 같은 키를 쓰므로 "내 선수 vs 랭커 평균"을 그대로 비교할 수 있다.
 export interface PlayerStats {
@@ -141,6 +139,8 @@ export interface MatchTeam {
   squad: MatchSquadPlayer[];
 }
 
+// 서버가 넥슨 원본(matchInfo[])을 teams[]로 정규화하고
+// 선수명/포지션/시즌을 정적 메타에서 조인해 내려준다.
 export interface MatchDetailResponse {
   matchId: string;
   matchDate: string;
@@ -202,9 +202,4 @@ export interface StatusResponse {
   configured: boolean;
   docsUrl: string;
   endpoints: { id: number; name: string; path: string }[];
-}
-
-export interface VerifyKeyResponse {
-  valid: boolean;
-  error?: string;
 }

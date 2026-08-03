@@ -9,7 +9,6 @@ import {
   getStatus,
   getTrades,
   getUserMatches,
-  verifyKey,
 } from './nexon';
 
 function lastUrl() {
@@ -81,15 +80,4 @@ describe('nexon api 함수', () => {
     });
   });
 
-  it('verifyKey는 POST로 키를 전달한다', async () => {
-    await verifyKey('my_key');
-
-    const [url, init] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.at(-1) as [
-      string,
-      RequestInit,
-    ];
-    expect(url).toBe('/api/nexon/verify-key');
-    expect(init.method).toBe('POST');
-    expect(init.body).toBe(JSON.stringify({ apiKey: 'my_key' }));
-  });
 });

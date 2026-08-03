@@ -175,41 +175,6 @@ describe('GET /images', () => {
   });
 });
 
-describe('POST /verify-key', () => {
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
-  it('키가 없으면 400을 준다', async () => {
-    const res = await request(app()).post('/api/nexon/verify-key').send({});
-
-    expect(res.status).toBe(400);
-    expect(res.body.valid).toBe(false);
-  });
-
-  it('넥슨이 200을 주면 유효로 판정한다', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => ({}) }) as unknown as Response));
-
-    const res = await request(app()).post('/api/nexon/verify-key').send({ apiKey: 'k' });
-
-    expect(res.body.valid).toBe(true);
-  });
-
-  it('넥슨 오류 메시지를 그대로 전달한다', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => ({
-        ok: false,
-        json: async () => ({ error: { message: 'Invalid API key' } }),
-      }) as unknown as Response)
-    );
-
-    const res = await request(app()).post('/api/nexon/verify-key').send({ apiKey: 'bad' });
-
-    expect(res.body.valid).toBe(false);
-    expect(res.body.error).toBe('Invalid API key');
-  });
-});
 
 describe('GET /metadata', () => {
   afterEach(() => {

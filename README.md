@@ -59,8 +59,7 @@ GEMINI_API_KEY=your_gemini_api_key_here
 ```
 
 > **넥슨 키는 필수입니다.** 목 데이터 폴백이 없어 키가 없으면 모든 조회가 실패합니다.
-> 서버에 키를 두지 않고 UI의 "API 키 설정"에서 개인 키를 입력할 수도 있습니다
-> (브라우저 `localStorage`에 저장되어 요청 헤더로 전달됩니다).
+> 키는 **서버에만** 존재합니다 — 브라우저는 키를 보관하지도, 전달하지도 않습니다.
 
 ### 2. 설치 및 실행
 
@@ -69,6 +68,7 @@ npm install
 
 npm run dev      # 개발 서버 (포트 3000)
 npm run lint     # 타입 체크
+npm test         # 테스트
 npm run build    # 프로덕션 빌드
 npm start        # 프로덕션 서버
 ```
@@ -83,13 +83,14 @@ npm start        # 프로덕션 서버
 │   ├── index.ts                # 진입점: dotenv → 라우터 → Vite/정적 → listen
 │   ├── routes/{nexon,ai}.ts    # /api/nexon/*, /api/ai-squad-assistant
 │   └── lib/
-│       ├── nexonClient.ts      # Base URL · 키 해석 · fetch 헬퍼
+│       ├── nexonClient.ts      # Base URL · env 키 해석 · fetch 헬퍼
 │       ├── divisions.ts        # 등급 코드 → 라벨
-│       └── meta.ts             # 선수명/포지션/시즌/매치타입 메타 캐시
+│       ├── meta.ts             # 선수명/포지션/시즌/매치타입 메타 캐시
+│       └── transform.ts        # 넥슨 원본 → 뷰 모델 변환
 ├── src/
 │   ├── App.tsx                 # 탭 라우팅 + 공유 훅 소유
 │   ├── lib/api/                # client · nexon · types (API 레이어)
-│   ├── hooks/                  # useOwnerData · useRankerStats · useApiKey · useToast
+│   ├── hooks/                  # useOwnerData · useRankerStats · useToast
 │   └── components/
 │       ├── OwnerView / MatchView / TradeView / MetaView
 │       ├── owner/ match/ meta/ common/

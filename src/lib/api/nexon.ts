@@ -11,15 +11,10 @@ import type {
   MetadataResponse,
   ImagesResponse,
   StatusResponse,
-  VerifyKeyResponse,
 } from "./types";
 
 export function getStatus(): Promise<StatusResponse> {
   return apiGet<StatusResponse>("/nexon/status");
-}
-
-export function verifyKey(apiKey: string): Promise<VerifyKeyResponse> {
-  return apiPost<VerifyKeyResponse>("/nexon/verify-key", { apiKey });
 }
 
 export function getAccount(nickname: string): Promise<AccountResponse> {

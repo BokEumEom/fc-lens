@@ -63,11 +63,10 @@ export interface OwnerData {
 
 /**
  * 구단주 중심 데이터(계정 · 매치 · 실시간 · 이적)를 한곳에서 관리한다.
- * 모든 호출은 src/lib/api를 경유하며, 넥슨 키는 client가 헤더에 주입한다.
- *
- * @param apiKeyRevision 저장된 API 키가 바뀔 때 재조회를 트리거하기 위한 값
+ * 모든 호출은 src/lib/api를 경유한다. 넥슨 키는 서버 환경변수에서만 쓰이므로
+ * 클라이언트는 키를 알지 못한다.
  */
-export function useOwnerData(apiKeyRevision: string): OwnerData {
+export function useOwnerData(): OwnerData {
   // 마지막으로 조회한 구단주를 이어서 보여준다. 처음 방문이면 빈 값 → 검색 안내 화면.
   const [nickname, setNickname] = useState(() => getLastOwner());
 
@@ -98,7 +97,7 @@ export function useOwnerData(apiKeyRevision: string): OwnerData {
 
   const ouid = account?.ouid ?? null;
 
-  // 구단주 계정 조회 — nickname 또는 API 키가 바뀌면 다시 조회한다.
+  // 구단주 계정 조회 — nickname이 바뀌면 다시 조회한다.
   useEffect(() => {
     if (!nickname.trim()) return;
 
@@ -125,7 +124,7 @@ export function useOwnerData(apiKeyRevision: string): OwnerData {
     return () => {
       cancelled = true;
     };
-  }, [nickname, apiKeyRevision]);
+  }, [nickname]);
 
   // 매치 기록 집계 — 구단주(ouid)와 매치 타입에 종속.
   useEffect(() => {

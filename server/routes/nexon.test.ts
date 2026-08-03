@@ -66,7 +66,7 @@ describe('nexonRouter', () => {
       expect(res.status).toBe(400);
     });
 
-    it('요청 헤더 키가 환경변수보다 우선한다', async () => {
+    it('클라이언트가 헤더로 키를 넘겨도 무시하고 환경변수 키만 쓴다', async () => {
       const fetchMock = mockNexon({ '/id': { ouid: OUID }, '/user/basic': {}, '/maxdivision': {}, '/user/match': [] });
       vi.stubGlobal('fetch', fetchMock);
 
@@ -75,7 +75,17 @@ describe('nexonRouter', () => {
         .set('x-nxopen-api-key', 'header_key');
 
       const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
-      expect(init.headers).toMatchObject({ 'x-nxopen-api-key': 'header_key' });
+      expect(init.headers).toMatchObject({ 'x-nxopen-api-key': API_KEY });
+    });
+
+    it('환경변수 키가 없으면 헤더를 넘겨도 400이다', async () => {
+      process.env.NEXON_OPENAPI_KEY = '';
+
+      const res = await request(app())
+        .get('/api/nexon/account?nickname=abc')
+        .set('x-nxopen-api-key', 'header_key');
+
+      expect(res.status).toBe(400);
     });
 
     it('status는 키 설정 여부와 엔드포인트 목록을 알려준다', async () => {

@@ -1,13 +1,11 @@
 import React, { useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { TabType } from './types';
-import { useApiKey } from './hooks/useApiKey';
 import { useOwnerData } from './hooks/useOwnerData';
 import { useToast } from './hooks/useToast';
 import { TopHeader } from './components/TopHeader';
 import { BottomNav } from './components/BottomNav';
 import { Toast } from './components/common/Toast';
-import { ApiKeyModal } from './components/common/ApiKeyModal';
 import { OwnerView } from './components/OwnerView';
 import { MatchView } from './components/MatchView';
 import { TradeView } from './components/TradeView';
@@ -23,10 +21,8 @@ const TAB_SUBTITLES: Record<TabType, string> = {
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabType>('owner');
 
-  const apiKey = useApiKey();
   const toast = useToast();
-  // 저장된 키가 바뀌면 구단주 데이터를 다시 조회한다.
-  const owner = useOwnerData(apiKey.savedKey);
+  const owner = useOwnerData();
 
   const navigateTab = (tab: TabType) => {
     setActiveTab(tab);
@@ -53,22 +49,9 @@ export default function App() {
       <Toast message={toast.message} />
 
       <main className="min-h-[calc(100vh-120px)] pb-28 sm:pb-24 pt-2 px-4 space-y-5">
-        <div className="flex justify-between items-center gap-3">
-          <span className="font-data text-[10px] text-[#B9F600] uppercase tracking-widest font-bold">
-            OFFICIAL NEXON OPEN API
-          </span>
-          <button
-            onClick={apiKey.openModal}
-            className={`px-3 py-1.5 rounded-xl border font-data text-xs flex items-center gap-1.5 transition-all ${
-              apiKey.savedKey
-                ? 'bg-[#B9F600]/15 border-[#B9F600] text-[#B9F600] font-bold shadow-[0_0_10px_rgba(185,246,0,0.2)]'
-                : 'bg-[#161A1E] border-[#2D333B] text-[#C3CAAC] hover:text-white'
-            }`}
-          >
-            <span className="material-symbols-outlined text-[16px]">key</span>
-            <span>{apiKey.savedKey ? '내 API 키 사용 중' : 'API 키 설정'}</span>
-          </button>
-        </div>
+        <span className="block font-data text-[10px] text-[#B9F600] uppercase tracking-widest font-bold">
+          OFFICIAL NEXON OPEN API
+        </span>
 
         {/*
           탭 전환 애니메이션. 데이터는 App의 훅(useOwnerData)이 소유하므로
@@ -123,7 +106,6 @@ export default function App() {
       </main>
 
       <BottomNav activeTab={activeTab} setActiveTab={navigateTab} />
-      <ApiKeyModal apiKey={apiKey} />
     </div>
   );
 }

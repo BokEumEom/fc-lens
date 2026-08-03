@@ -1,4 +1,4 @@
-import type { Request, Response } from "express";
+import type { Response } from "express";
 
 // ------------------------------------------------------------------
 // 넥슨 FC Online Open API 공통 클라이언트
@@ -20,11 +20,12 @@ export function isKeyConfigured(key: string | undefined): boolean {
   return Boolean(key && key !== PLACEHOLDER_KEY && key.trim().length > 0);
 }
 
-// 요청 헤더(x-nxopen-api-key) 우선, 없으면 환경변수 사용.
+// 넥슨 키는 서버 환경변수에서만 읽는다.
+// 클라이언트가 키를 넘기는 경로는 두지 않는다 — 브라우저에 키를 보관하면
+// XSS로 유출될 수 있고, 이 앱은 서버 키 하나로 동작하므로 필요도 없다.
 // 유효한 키가 없으면 400 응답을 기록하고 null 반환.
-export function resolveApiKey(req: Request, res: Response): string | null {
-  const customApiKey = req.headers["x-nxopen-api-key"] as string | undefined;
-  const apiKey = customApiKey || process.env.NEXON_OPENAPI_KEY;
+export function resolveApiKey(res: Response): string | null {
+  const apiKey = process.env.NEXON_OPENAPI_KEY;
 
   if (!isKeyConfigured(apiKey)) {
     res.status(400).json({

@@ -1,8 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { apiGet, apiPost, getStoredApiKey, setStoredApiKey } from './client';
-
-const KEY_STORAGE = 'fconline_nexon_api_key';
+import { apiGet, apiPost } from './client';
 
 function okResponse(body: unknown) {
   return { ok: true, status: 200, json: async () => body } as unknown as Response;
@@ -34,45 +32,18 @@ describe('api client', () => {
     vi.unstubAllGlobals();
   });
 
-  describe('API 키 저장', () => {
-    it('저장·조회·해제가 동작한다', () => {
-      expect(getStoredApiKey()).toBe('');
-
-      setStoredApiKey('test_key');
-      expect(getStoredApiKey()).toBe('test_key');
-      expect(localStorage.getItem(KEY_STORAGE)).toBe('test_key');
-
-      setStoredApiKey('');
-      expect(getStoredApiKey()).toBe('');
-      expect(localStorage.getItem(KEY_STORAGE)).toBeNull();
-    });
-
-    it('앞뒤 공백을 제거하고 저장한다', () => {
-      setStoredApiKey('  spaced  ');
-      expect(getStoredApiKey()).toBe('spaced');
-    });
-
-    it('공백만 있는 값은 해제로 처리한다', () => {
-      setStoredApiKey('key');
-      setStoredApiKey('   ');
-      expect(getStoredApiKey()).toBe('');
-    });
-  });
-
-  describe('헤더 주입', () => {
-    it('저장된 키가 있으면 x-nxopen-api-key를 실어 보낸다', async () => {
-      setStoredApiKey('my_key');
+  describe('넥슨 키 비노출', () => {
+    it('GET 요청에 어떤 헤더도 붙이지 않는다 (키는 서버 env 전용)', async () => {
       await apiGet('/nexon/account', { nickname: 'a' });
 
       const [, init] = lastCall();
-      expect(init.headers).toMatchObject({ 'x-nxopen-api-key': 'my_key' });
+      // fetch(url) 단일 인자 호출이거나, 헤더가 없어야 한다
+      expect(init?.headers).toBeUndefined();
     });
 
-    it('키가 없으면 헤더를 붙이지 않는다 (서버 환경변수 키로 폴백)', async () => {
+    it('localStorage에 키를 저장하지 않는다', async () => {
       await apiGet('/nexon/account', { nickname: 'a' });
-
-      const [, init] = lastCall();
-      expect(init.headers).not.toHaveProperty('x-nxopen-api-key');
+      expect(localStorage.getItem('fconline_nexon_api_key')).toBeNull();
     });
   });
 
@@ -120,13 +91,13 @@ describe('api client', () => {
 
   describe('apiPost', () => {
     it('JSON 본문과 Content-Type을 함께 보낸다', async () => {
-      await apiPost('/nexon/verify-key', { apiKey: 'k' });
+      await apiPost('/ai-squad-assistant', { prompt: 'k' });
 
       const [url, init] = lastCall();
-      expect(url).toBe('/api/nexon/verify-key');
+      expect(url).toBe('/api/ai-squad-assistant');
       expect(init.method).toBe('POST');
       expect(init.headers).toMatchObject({ 'Content-Type': 'application/json' });
-      expect(init.body).toBe(JSON.stringify({ apiKey: 'k' }));
+      expect(init.body).toBe(JSON.stringify({ prompt: 'k' }));
     });
 
     it('본문이 없으면 body를 생략한다', async () => {

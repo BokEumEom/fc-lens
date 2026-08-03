@@ -42,34 +42,9 @@ nexonRouter.get("/status", (req: Request, res: Response) => {
   });
 });
 
-// 사용자 입력 넥슨 API 키 유효성 검증
-nexonRouter.post("/verify-key", async (req: Request, res: Response) => {
-  const { apiKey } = req.body;
-  if (!apiKey) {
-    res.status(400).json({ valid: false, error: "API key missing" });
-    return;
-  }
-
-  try {
-    const response = await fetch(
-      `${NEXON_FCONLINE}/id?nickname=${encodeURIComponent("김병지")}`,
-      { headers: nexonHeaders(apiKey) }
-    );
-
-    if (response.ok) {
-      res.json({ valid: true });
-    } else {
-      const errorData = await response.json().catch(() => ({}));
-      res.json({ valid: false, error: errorData.error?.message || "Invalid NEXON API key" });
-    }
-  } catch (err: any) {
-    res.json({ valid: false, error: err.message });
-  }
-});
-
 // 1. 계정 정보 조회 (OUID, level, max division, match list)
 async function handleAccount(req: Request, res: Response) {
-  const apiKey = resolveApiKey(req, res);
+  const apiKey = resolveApiKey(res);
   if (!apiKey) return;
 
   const nickname = ((req.query.nickname as string) || "").trim();
@@ -152,7 +127,7 @@ nexonRouter.get("/user-lookup", handleAccount);
 
 // 2. 최근 매치 기록 목록 조회 (집계 포함)
 nexonRouter.get("/user-matches", async (req: Request, res: Response) => {
-  const apiKey = resolveApiKey(req, res);
+  const apiKey = resolveApiKey(res);
   if (!apiKey) return;
 
   let ouid = req.query.ouid as string;
@@ -207,7 +182,7 @@ nexonRouter.get("/user-matches", async (req: Request, res: Response) => {
 
 // 2. 실시간 매치 정보 조회 (최근 경기 시각 기반 추정 — 공식 엔드포인트 아님)
 nexonRouter.get("/live-match", async (req: Request, res: Response) => {
-  const apiKey = resolveApiKey(req, res);
+  const apiKey = resolveApiKey(res);
   if (!apiKey) return;
 
   const nickname = (req.query.nickname as string) || "";
@@ -298,7 +273,7 @@ nexonRouter.get("/live-match", async (req: Request, res: Response) => {
 
 // 2. 매치 상세 정보 조회
 nexonRouter.get("/match-detail", async (req: Request, res: Response) => {
-  const apiKey = resolveApiKey(req, res);
+  const apiKey = resolveApiKey(res);
   if (!apiKey) return;
 
   const matchId = req.query.matchid as string;
@@ -332,7 +307,7 @@ nexonRouter.get("/match-detail", async (req: Request, res: Response) => {
 // 20경기 집계"를 돌려준다. players 파라미터가 없으면 OPENAPI00004로 실패한다.
 // 스쿼드 전체를 한 번에 조회할 수 있어(요청당 1콜) rate limit을 피할 수 있다.
 nexonRouter.get("/ranker-stats", async (req: Request, res: Response) => {
-  const apiKey = resolveApiKey(req, res);
+  const apiKey = resolveApiKey(res);
   if (!apiKey) return;
 
   const matchType = (req.query.matchtype as string) || "50";
@@ -428,7 +403,7 @@ nexonRouter.get("/images", (req: Request, res: Response) => {
 
 // 6. 이적시장 거래 내역 조회 (buy/sell)
 nexonRouter.get("/trade", async (req: Request, res: Response) => {
-  const apiKey = resolveApiKey(req, res);
+  const apiKey = resolveApiKey(res);
   if (!apiKey) return;
 
   let ouid = req.query.ouid as string;

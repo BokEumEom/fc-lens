@@ -87,7 +87,6 @@ fc-lens/
     ├── hooks/
     │   ├── useOwnerData.ts   # 계정·매치·실시간·상세·이적 상태 일괄 관리
     │   ├── useRankerStats.ts # 스쿼드 배치 랭커 통계 조회
-    │   ├── useApiKey.ts      # 키 입력·검증·저장
     │   └── useToast.ts       # 자동 소멸 알림
     └── components/
         ├── TopHeader.tsx     # 상단 헤더 + 알림 드롭다운
@@ -100,7 +99,7 @@ fc-lens/
         ├── match/            # MatchScoreboard, MatchSquadRatings,
         │                     #   LiveMatchCard, MatchWinRateChart
         ├── meta/             # PlayerBenchmarkRow
-        └── common/           # Skeletons, Toast, ApiKeyModal
+        └── common/           # Skeletons, Toast
 ```
 
 > **파일 크기 기준**: 컴포넌트는 200~400줄을 넘지 않게 유지한다. 현재 최대는
@@ -124,7 +123,8 @@ fc-lens/
 서버가 메타를 조인하고 화면이 바로 쓸 수 있는 형태로 변환해 응답한다.
 
 **API 키 처리** (`server/lib/nexonClient.ts`):
-- 우선순위: 요청 헤더 `x-nxopen-api-key` → 없으면 환경변수 `NEXON_OPENAPI_KEY`.
+- 키는 **환경변수 `NEXON_OPENAPI_KEY`에서만** 읽는다. 클라이언트가 키를 넘기는 경로는 없다.
+  (`x-nxopen-api-key` 헤더를 보내도 무시된다.)
 - 예시값(`test_nxapi_key_here`)이거나 비어 있으면 400으로 안내.
 
 **정적 메타 캐시** (`server/lib/meta.ts`):
@@ -139,7 +139,6 @@ fc-lens/
 | 메서드 | 경로 | 역할 | 외부 대상 |
 |--------|------|------|-----------|
 | GET | `/api/nexon/status` | 키 설정 여부 + 엔드포인트 목록 | (내부) |
-| POST | `/api/nexon/verify-key` | 사용자 입력 키 유효성 검증 | Nexon `id` |
 | GET | `/api/nexon/account` | 닉네임 → OUID·레벨·최고등급·최근 매치ID | Nexon `id`/`user/basic`/`maxdivision`/`user/match` |
 | GET | `/api/nexon/user-matches` | 최근 경기 집계(승/무/패·점유율·득점자) | Nexon `user/match` + `match-detail` (병렬) |
 | GET | `/api/nexon/live-match` | 최근 경기 시각으로 진행 여부 추정(≤20분) | Nexon `user/match` + `match-detail` |
@@ -155,7 +154,7 @@ fc-lens/
 
 - `main.tsx`: `createRoot(#root).render(<StrictMode><App/></StrictMode>)`.
 - `App.tsx`: **라우터 라이브러리 없이** `useState`로 탭 상태(`TabType`)를 관리한다.
-  - 공유 훅(`useApiKey`, `useOwnerData`, `useToast`)을 **App이 소유**하고 각 뷰에 슬라이스로 전달.
+  - 공유 훅(`useOwnerData`, `useToast`)을 **App이 소유**하고 각 뷰에 슬라이스로 전달.
     덕분에 `AnimatePresence`로 뷰를 재마운트해도 조회 결과가 유지된다.
   - 저장된 API 키가 바뀌면 `useOwnerData(apiKey.savedKey)`가 전체를 재조회한다.
 
@@ -168,15 +167,13 @@ fc-lens/
 ```
 
 - **컴포넌트에서 직접 `fetch`를 호출하지 않는다.**
-- `lib/api/client.ts`가 `localStorage`의 사용자 키를 모든 요청 헤더에 자동으로 주입하므로,
-  개별 호출부가 키를 신경 쓸 필요가 없다.
+- 넥슨 키는 서버 전용이라 클라이언트 호출부는 인증을 신경 쓸 필요가 없다(5.2 참고).
 - 훅의 `useEffect`는 모두 `cancelled` 가드로 경쟁 상태(race)를 막는다.
 
 | 훅 | 역할 |
 |----|------|
 | `useOwnerData(apiKeyRevision)` | 계정·매치 집계·실시간·매치 상세·이적을 한곳에서 관리. `myTeam`/`opponentTeam` 파생 제공 |
 | `useRankerStats(squad, matchType)` | 스쿼드 전체를 **1회 요청**으로 조회. `spid*100+포지션`을 키로 `Map` 반환 |
-| `useApiKey()` | 키 입력·검증(`verify-key`)·`localStorage` 저장 |
 | `useToast(duration)` | 자동 소멸 알림. 언마운트 시 타이머 정리 |
 
 ### 4.4 화면 컴포넌트 (`src/components/`)
@@ -239,11 +236,15 @@ GET /fconline/v1/ranker-stats?matchtype=50&players=[{"id":<spid>,"po":<sppositio
 핵심 원칙: **API 키는 서버에만 존재/통과**시키고, 브라우저는 항상 **동일 오리진 `/api/*`**만 호출한다.
 넥슨 Open API는 CORS를 허용하지 않으므로 브라우저에서 직접 호출할 수 없다.
 
-### 5.2 넥슨 API 키의 두 경로
+### 5.2 넥슨 API 키 (서버 전용)
 
-1. **환경변수**: 서버가 `.env`의 `NEXON_OPENAPI_KEY`를 기본 키로 사용.
-2. **사용자 입력 키**: `localStorage('fconline_nexon_api_key')`에 저장된 키를
-   `lib/api/client.ts`가 `x-nxopen-api-key` 헤더로 자동 주입 → 서버가 헤더 키를 우선한다.
+키는 서버 `.env`의 `NEXON_OPENAPI_KEY` **한 곳에만** 존재한다.
+
+- 브라우저는 키를 보관하지도, 전달하지도 않는다. `lib/api/client.ts`는 인증 헤더를 붙이지 않는다.
+- 서버 응답에 키가 실려 나가는 경로도 없다. `/api/nexon/status`는 `configured: boolean`만 반환한다.
+- 근거: `localStorage`에 둔 키는 XSS로 읽힌다. 이 앱은 서버 키 하나로 동작하므로
+  클라이언트 키 입력(BYOK)이 필요 없고, 있으면 공격면만 늘어난다.
+- 넥슨 Open API는 CORS를 허용하지 않아 브라우저에서 직접 호출하는 것도 불가능하다.
 
 ### 5.3 랭커 벤치마크 흐름
 
@@ -260,8 +261,9 @@ MetaView → useRankerStats(myTeam.squad, matchType)
 
 | 키 | 저장 위치 | 내용 |
 |----|-----------|------|
-| `fconline_nexon_api_key` | `lib/api/client.ts` | 사용자가 입력한 넥슨 API 키 |
 | `fclens_last_owner` | `lib/storage.ts` | 마지막으로 조회한 구단주 닉네임 |
+
+> 넥슨 API 키는 `localStorage`에 저장하지 않는다(서버 환경변수 전용).
 
 > Phase 3a에서 목업 화면이 제거되며 즐겨찾기·스쿼드 프리셋·선수 메모 키는 모두 사라졌다.
 > 저장된 구단주가 없으면 검색 안내 화면으로 시작한다(기본 닉네임을 하드코딩하지 않는다).

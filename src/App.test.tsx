@@ -62,24 +62,14 @@ describe('App', () => {
     await waitFor(() => expect(screen.getByText('MATCH DETAIL')).toBeDefined());
   });
 
-  it('저장된 키가 없으면 API 키 설정 버튼을 보여준다', () => {
-    render(<App />);
-    expect(screen.getByText('API 키 설정')).toBeDefined();
-  });
 
-  it('저장된 키가 있으면 사용 중으로 표시한다', () => {
-    localStorage.setItem('fconline_nexon_api_key', 'my_key');
+
+  it('넥슨 API 키 입력 UI를 노출하지 않는다 (키는 서버 env 전용)', () => {
     render(<App />);
 
-    expect(screen.getByText('내 API 키 사용 중')).toBeDefined();
-  });
-
-  it('API 키 버튼이 모달을 연다', async () => {
-    render(<App />);
-
-    fireEvent.click(screen.getByText('API 키 설정'));
-
-    await waitFor(() => expect(screen.getByText('넥슨 Open API 키')).toBeDefined());
+    expect(screen.queryByText('API 키 설정')).toBeNull();
+    expect(screen.queryByText('넥슨 Open API 키')).toBeNull();
+    expect(document.querySelector('input[type="password"]')).toBeNull();
   });
 
   it('마지막 구단주가 있으면 바로 조회한다', async () => {

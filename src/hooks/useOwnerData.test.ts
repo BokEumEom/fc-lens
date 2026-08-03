@@ -65,7 +65,7 @@ describe('useOwnerData', () => {
   });
 
   it('저장된 구단주가 없으면 조회하지 않는다', async () => {
-    const { result } = renderHook(() => useOwnerData(''));
+    const { result } = renderHook(() => useOwnerData());
 
     expect(result.current.nickname).toBe('');
     expect(api.getAccount).not.toHaveBeenCalled();
@@ -74,7 +74,7 @@ describe('useOwnerData', () => {
 
   it('마지막으로 조회한 구단주를 이어서 불러온다', async () => {
     localStorage.setItem('fclens_last_owner', '테스트구단주');
-    const { result } = renderHook(() => useOwnerData(''));
+    const { result } = renderHook(() => useOwnerData());
 
     expect(result.current.nickname).toBe('테스트구단주');
     await waitFor(() => expect(result.current.account).not.toBeNull());
@@ -82,7 +82,7 @@ describe('useOwnerData', () => {
   });
 
   it('검색하면 닉네임을 저장한다', async () => {
-    const { result } = renderHook(() => useOwnerData(''));
+    const { result } = renderHook(() => useOwnerData());
 
     act(() => result.current.searchOwner('  새구단주  '));
 
@@ -91,7 +91,7 @@ describe('useOwnerData', () => {
   });
 
   it('빈 검색어는 무시한다', async () => {
-    const { result } = renderHook(() => useOwnerData(''));
+    const { result } = renderHook(() => useOwnerData());
 
     act(() => result.current.searchOwner('   '));
 
@@ -100,7 +100,7 @@ describe('useOwnerData', () => {
   });
 
   it('계정 조회 후 매치·이적을 ouid로 이어서 조회한다', async () => {
-    const { result } = renderHook(() => useOwnerData(''));
+    const { result } = renderHook(() => useOwnerData());
     act(() => result.current.searchOwner('테스트구단주'));
 
     await waitFor(() => expect(result.current.account?.ouid).toBe(OUID));
@@ -117,7 +117,7 @@ describe('useOwnerData', () => {
   it('계정 조회 실패 시 에러를 노출하고 파생 데이터를 비운다', async () => {
     vi.spyOn(api, 'getAccount').mockRejectedValue(new Error('구단주를 찾을 수 없습니다.'));
 
-    const { result } = renderHook(() => useOwnerData(''));
+    const { result } = renderHook(() => useOwnerData());
     act(() => result.current.searchOwner('없는구단주'));
 
     await waitFor(() => expect(result.current.accountError).toBe('구단주를 찾을 수 없습니다.'));
@@ -126,7 +126,7 @@ describe('useOwnerData', () => {
   });
 
   it('ouid로 내 팀을 식별한다 (teams[0]이 상대일 수 있다)', async () => {
-    const { result } = renderHook(() => useOwnerData(''));
+    const { result } = renderHook(() => useOwnerData());
     act(() => result.current.searchOwner('테스트구단주'));
 
     await waitFor(() => expect(result.current.matchDetail).not.toBeNull());
@@ -137,7 +137,7 @@ describe('useOwnerData', () => {
   });
 
   it('구단주가 바뀌면 첫 매치를 자동 선택한다', async () => {
-    const { result } = renderHook(() => useOwnerData(''));
+    const { result } = renderHook(() => useOwnerData());
     act(() => result.current.searchOwner('테스트구단주'));
 
     await waitFor(() => expect(result.current.selectedMatchId).toBe('m1'));
@@ -145,7 +145,7 @@ describe('useOwnerData', () => {
   });
 
   it('매치 타입을 바꾸면 매치 기록만 다시 조회한다', async () => {
-    const { result } = renderHook(() => useOwnerData(''));
+    const { result } = renderHook(() => useOwnerData());
     act(() => result.current.searchOwner('테스트구단주'));
     await waitFor(() => expect(api.getUserMatches).toHaveBeenCalled());
 
@@ -159,17 +159,6 @@ describe('useOwnerData', () => {
     expect((api.getAccount as ReturnType<typeof vi.fn>).mock.calls.length).toBe(accountCalls);
   });
 
-  it('API 키가 바뀌면 계정을 다시 조회한다', async () => {
-    localStorage.setItem('fclens_last_owner', '테스트구단주');
-    const { rerender } = renderHook(({ key }) => useOwnerData(key), {
-      initialProps: { key: '' },
-    });
-
-    await waitFor(() => expect(api.getAccount).toHaveBeenCalledTimes(1));
-    rerender({ key: 'new-api-key' });
-
-    await waitFor(() => expect(api.getAccount).toHaveBeenCalledTimes(2));
-  });
 
   it('언마운트 후 도착한 응답은 상태에 반영하지 않는다', async () => {
     let resolveAccount: (v: unknown) => void = () => {};
@@ -181,7 +170,7 @@ describe('useOwnerData', () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     localStorage.setItem('fclens_last_owner', '테스트구단주');
-    const { unmount } = renderHook(() => useOwnerData(''));
+    const { unmount } = renderHook(() => useOwnerData());
     unmount();
 
     await act(async () => {
